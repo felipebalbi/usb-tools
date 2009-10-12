@@ -446,9 +446,8 @@ int main(int argc, char *argv[])
 			goto err3;
 		}
 
-		printf("[ using %s written %10.02f MB empty %10.02f read %10.02f kB/s write %10.02f kB/s ]\r",
+		printf("[ using %s written %10.02f MB read %10.02f kB/s write %10.02f kB/s ]\r",
 				output, (float) msc->transferred / 1024 / 1024,
-				(float) msc->pempty / 1024 / 1024,
 				msc->read_tput, msc->write_tput);
 
 		fflush(stdout);
