@@ -190,6 +190,8 @@ static int do_write(struct usb_msc_test *msc)
 		sync();
 		gettimeofday(&end, NULL);
 
+		msc->write_tput = throughput(&start, &end, ret);
+
 		done += ret;
 		msc->pempty -= ret;
 
@@ -204,9 +206,6 @@ static int do_write(struct usb_msc_test *msc)
 			}
 
 		}
-
-		msc->write_tput = throughput(&start, &end, ret);
-
 	}
 
 	ret = lseek(msc->fd, 0, SEEK_CUR);
