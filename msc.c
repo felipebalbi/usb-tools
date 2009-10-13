@@ -186,8 +186,6 @@ static int do_write(struct usb_msc_test *msc)
 			perror("do_write");
 			goto err;
 		}
-		/* sync every write so we get correct time measurements */
-		sync();
 		gettimeofday(&end, NULL);
 
 		msc->write_tput = throughput(&start, &end, ret);
@@ -415,7 +413,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, output);
 
-	msc->fd = open(output, O_NONBLOCK | O_RDWR | O_DIRECT);
+	msc->fd = open(output, O_RDWR | O_DIRECT);
 	if (msc->fd < 0) {
 		DBG("%s: could not open %s\n", __func__, output);
 		goto err2;
