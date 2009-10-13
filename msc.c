@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Felipe Balbi <felipe.balbi@nokia.com>
  *
- * This file is part os the USB Verification Tools Project
+ * This file is part of the USB Verification Tools Project
  *
  * USB Tools is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public Liicense as published by
