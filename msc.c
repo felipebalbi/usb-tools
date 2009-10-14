@@ -450,6 +450,10 @@ int main(int argc, char *argv[])
 		fflush(stdout);
 	}
 
+	close(msc->fd);
+	free(msc->rxbuf);
+	free(msc);
+
 	return 0;
 
 err3:

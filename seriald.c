@@ -374,6 +374,12 @@ int main(int argc, char *argv[])
 		fflush(stdout);
 	}
 
+	free(serial->pfd);
+	free(serial->term);
+	close(serial->fd);
+	free(serial->buf);
+	free(serial);
+
 	return 0;
 
 err5:
