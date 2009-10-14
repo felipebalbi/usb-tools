@@ -253,7 +253,6 @@ static int do_read(struct usb_serial_test *serial)
 		gettimeofday(&end, NULL);
 
 		serial->read_tput = throughput(&start, &end, transferred);
-		serial->transferred += transferred;
 		done += transferred;
 	}
 
