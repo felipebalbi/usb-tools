@@ -81,7 +81,7 @@ static char *alloc_buffer(unsigned size)
 		return NULL;
 	}
 
-	tmp = memalign(getpagesize(), size);
+	tmp = malloc(size);
 	if (!tmp)
 		return NULL;
 
@@ -292,12 +292,6 @@ int main(int argc, char *argv[])
 			if (size == 0) {
 				DBG("%s: can't do it with zero length buffer\n",
 						__func__);
-				ret = -EINVAL;
-				goto err0;
-			}
-
-			if (size % getpagesize()) {
-				DBG("%s: unaligned size\n", __func__);
 				ret = -EINVAL;
 				goto err0;
 			}
