@@ -367,9 +367,9 @@ int main(int argc, char *argv[])
 			goto err5;
 		}
 
-		printf("[ using %s read %10.02f kB wrote %10.02f kB ]\r", tty,
-				(float) serial->amount_read / 1024,
-				(float) serial->amount_write / 1024);
+		printf("[ using %s read %10.02f MB wrote %10.02f MB ]\r", tty,
+				(float) serial->amount_read / 1024 / 1024,
+				(float) serial->amount_write / 1024 / 1024);
 
 		fflush(stdout);
 	}
