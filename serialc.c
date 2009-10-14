@@ -438,7 +438,7 @@ int main(int argc, char *argv[])
 			goto err3;
 		}
 
-		printf("[ V%02x P%02x written %10.02f MB read %10.02f kB/s write %10.02f kB/s ]\r",
+		printf("[ V%04x P%04x written %10.02f MB read %10.02f kB/s write %10.02f kB/s ]\r",
 				vid, pid, (float) serial->transferred / 1024 / 1024,
 				serial->read_tput, serial->write_tput);
 
