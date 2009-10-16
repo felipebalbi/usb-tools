@@ -82,6 +82,21 @@ struct usb_serial_test {
 	unsigned char		*rxbuf;
 };
 
+/* units which will be used for pretty printing the amount of data
+ * transferred
+ */
+static char	*units[] = {
+	"",
+	"k",
+	"M",
+	"G",
+	"T",
+	"P",
+	"E",
+	"Z",
+	"Y",
+};
+
 /**
  * init_buffer - initializes our TX buffer with known data
  * @buf:	Buffer to initialize
@@ -432,14 +447,29 @@ int main(int argc, char *argv[])
 	}
 
 	while (1) {
+		float		transferred = 0;
+		int		i;
+		char		*unit = NULL;
+
 		ret = do_test(serial);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
 		}
 
-		printf("[ V%04x P%04x written %10.02f MB read %10.02f kB/s write %10.02f kB/s ]\r",
-				vid, pid, (float) serial->transferred / 1024 / 1024,
+		transferred = (float) serial->transferred;
+
+		for (i = 0; i < ARRAY_SIZE(units); i++) {
+			if (transferred > 1024.0) {
+				transferred /= 1024.0;
+				continue;
+			}
+			unit = units[i];
+			break;
+		}
+
+		printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+				vid, pid, transferred, unit, transferred > 1 ? "s" : "",
 				serial->read_tput, serial->write_tput);
 
 		fflush(stdout);

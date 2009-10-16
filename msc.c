@@ -82,6 +82,20 @@ struct usb_msc_test {
  *    the fd.
  */
 
+/* units which will be used for pretty printing the amount of data
+ * transferred
+ */
+static char	*units[] = {
+	"",
+	"k",
+	"M",
+	"G",
+	"T",
+	"P",
+	"E",
+	"Z",
+	"Y",
+};
 
 /**
  * init_buffer - initializes our TX buffer with known data
@@ -437,14 +451,29 @@ int main(int argc, char *argv[])
 	sync();
 
 	while (1) {
+		float		transferred = 0;
+		int		i;
+		char		*unit = NULL;
+
 		ret = do_test(msc);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
 		}
 
-		printf("[ using %s written %10.02f MB read %10.02f kB/s write %10.02f kB/s ]\r",
-				output, (float) msc->transferred / 1024 / 1024,
+		transferred = (float) msc->transferred;
+
+		for (i = 0; i < ARRAY_SIZE(units); i++) {
+			if (transferred > 1024.0) {
+				transferred /= 1024.0;
+				continue;
+			}
+			unit = units[i];
+			break;
+		}
+
+		printf("[ using %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+				output, transferred, unit, transferred > 1 ? "s" : "",
 				msc->read_tput, msc->write_tput);
 
 		fflush(stdout);
