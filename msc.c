@@ -202,7 +202,15 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 	return (float) size / ((diff / 1000000.0) * 1024);
 }
 
-static void report_progress(struct usb_msc_test *msc)
+/**
+ * report_progess - reports the progress of @test
+ * @msc:	Mass Storage Test Context
+ * @test:	test case number
+ *
+ * each test case implementation is required to call this function
+ * in order for the user to get progress report.
+ */
+static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case test)
 {
 	float		transferred = 0;
 	int		i;
@@ -219,8 +227,8 @@ static void report_progress(struct usb_msc_test *msc)
 		break;
 	}
 
-	printf("[ %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-			msc->output, transferred, unit, transferred > 1 ? "s" : "",
+	printf("[ test %d written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+			test, transferred, unit, transferred > 1 ? "s" : "",
 			msc->read_tput, msc->write_tput);
 
 	fflush(stdout);
@@ -366,6 +374,8 @@ static int do_test_simple(struct usb_msc_test *msc, unsigned bytes)
 	if (ret < 0)
 		goto err;
 
+	report_progress(msc, MSC_TEST_SIMPLE);
+
 	return 0;
 
 err:
@@ -379,13 +389,24 @@ err:
  */
 static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 {
-	if (test > MSC_TEST_SIMPLE) {
+	int			ret = 0;
+
+	switch (test) {
+	case MSC_TEST_SIMPLE:
+		ret = do_test_simple(msc, msc->size);
+		if (ret < 0) {
+			printf("%s: test %d: failed\n", __func__,
+					MSC_TEST_SIMPLE);
+			return ret;
+		}
+		break;
+	default:
 		printf("%s: test %d not implemented yet\n",
 				__func__, test);
-		return -1;
+		ret = -ENOTSUP;
 	}
 
-	return do_test_simple(msc, msc->size);
+	return 0;
 }
 
 static void usage(char *prog)
@@ -558,8 +579,6 @@ int main(int argc, char *argv[])
 			goto err3;
 		}
 		count--;
-
-		report_progress(msc);
 	}
 
 	printf("\n");
