@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mount.h>
+#include <sys/uio.h>
 
 static unsigned debug;
 
@@ -356,7 +357,131 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 	return 0;
 }
 
+/**
+ * do_writev - SG Write txbuf to fd
+ * @msc:	Mass Storage Test Context
+ * @count:	how many transfers
+ */
+static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
+		unsigned count)
+{
+	int			ret;
+
+	gettimeofday(&start, NULL);
+	ret = writev(msc->fd, iov, count);
+	if (ret < 0) {
+		perror("do_writev");
+		goto err;
+	}
+	gettimeofday(&end, NULL);
+
+	msc->write_tput = throughput(&start, &end, ret);
+
+	msc->pempty -= ret;
+
+	if (msc->pempty == 0) {
+		DBG("%s: restarting\n", __func__);
+		msc->pempty = msc->psize;
+		ret = lseek(msc->fd, 0, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: couldn't seek the start\n", __func__);
+			goto err;
+		}
+
+	}
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: couldn't seek current offset\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	return 0;
+
+err:
+	return ret;
+}
+
+/**
+ * do_read - SG Read from fd to rxbuf
+ * @msc:	Mass Storage Test Context
+ * @count:	how many transfers
+ */
+static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
+		unsigned bytes)
+{
+	int			done = 0;
+	int			ret;
+
+	gettimeofday(&start, NULL);
+	ret = readv(msc->fd, iov, bytes);
+	if (ret < 0) {
+		perror("do_readv");
+		goto err;
+	}
+	gettimeofday(&end, NULL);
+
+	done += ret;
+	msc->transferred += ret;
+	msc->read_tput = throughput(&start, &end, ret);
+
+	return 0;
+
+err:
+	return ret;
+}
+
 /* ------------------------------------------------------------------------- */
+
+/**
+ * do_test_sg_2sect - SG write/read/verify 2 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_2sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 2 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			break;
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_SG_2SECT);
+		i++;
+	}
+
+	return ret;
+}
 
 /**
  * do_test_64sect - write/read/verify 64 sectors at a time
@@ -555,6 +680,14 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 			return ret;
 		}
 		break;
+	case MSC_TEST_SG_2SECT:
+		ret = do_test_sg_2sect(msc);
+		if (ret < 0) {
+			printf("%s: test %d failed\n", __func__,
+					MSC_TEST_SG_2SECT);
+			return ret;
+		}
+		break;
 	default:
 		printf("%s: test %d not implemented yet\n",
 				__func__, test);
@@ -748,6 +881,7 @@ int main(int argc, char *argv[])
 	printf("\n");
 
 	close(msc->fd);
+	free(msc->txbuf);
 	free(msc->rxbuf);
 	free(msc);
 
