@@ -69,7 +69,6 @@ struct usb_msc_test {
 };
 
 enum usb_msc_test_case {
-	MSC_TEST_ALL = -1,		/* run all tests */
 	MSC_TEST_SIMPLE = 0,		/* simple */
 	MSC_TEST_1SECT,			/* 1 sector at a time */
 	MSC_TEST_8SECT,			/* 8 sectors at a time */
@@ -459,10 +458,10 @@ int main(int argc, char *argv[])
 
 	uint64_t		blksize;
 	unsigned		size = 0;
-	int			count = -1; /* infinit by default */
+	unsigned		count = 100; /* 100 loops by default */
 	int			ret = 0;
 
-	enum usb_msc_test_case	test = MSC_TEST_ALL; /* test all */
+	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
 
@@ -482,6 +481,10 @@ int main(int argc, char *argv[])
 
 		case 't':
 			test = atoi(optarg);
+			if (test < 0) {
+				DBG("%s: invalid parameter\n", __func__);
+				goto err0;
+			}
 			break;
 
 		case 's':
