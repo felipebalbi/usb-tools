@@ -68,6 +68,31 @@ struct usb_msc_test {
 	char		*output;	/* writing to... */
 };
 
+enum usb_msc_test_case {
+	MSC_TEST_ALL = -1,		/* run all tests */
+	MSC_TEST_SIMPLE = 0,		/* simple */
+	MSC_TEST_1SECT,			/* 1 sector at a time */
+	MSC_TEST_8SECT,			/* 8 sectors at a time */
+	MSC_TEST_32SECT,		/* 32 sectors at a time */
+	MSC_TEST_64SECT,		/* 64 sectors at a time */
+	MSC_TEST_128SECT,		/* 128 sectors at a time */
+	MSC_TEST_SG_2SECT,		/* SG 2 sectors at a time */
+	MSC_TEST_SG_8SECT,		/* SG 8 sectors at a time */
+	MSC_TEST_SG_32SECT,		/* SG 32 sectors at a time */
+	MSC_TEST_SG_64SECT,		/* SG 64 sectors at a time */
+	MSC_TEST_SG_128SECT,		/* SG 128 sectors at a time */
+	MSC_TEST_VARY,			/* Varying buffer size */
+	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
+	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
+	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
+	MSC_TEST_READ_PAST_LAST,	/* read extends over the last sector */
+	MSC_TEST_READ_START_LAST,	/* read starts over the last sector */
+	MSC_TEST_WRITE_PAST_LAST,	/* write extends over the last sector */
+	MSC_TEST_WRITE_START_LAST,	/* write start over the last sector */
+	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
+	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
+};
+
 /**
  * How it works:
  *
@@ -352,9 +377,9 @@ err:
  * @msc:	Mass Storage Test Context
  * @test:	test number
  */
-static int do_test(struct usb_msc_test *msc, int test)
+static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 {
-	if (test > 0) {
+	if (test > MSC_TEST_SIMPLE) {
 		printf("%s: test %d not implemented yet\n",
 				__func__, test);
 		return -1;
@@ -415,7 +440,8 @@ int main(int argc, char *argv[])
 	unsigned		endless = 1;
 	int			count = 0; /* infinit by default */
 	int			ret = 0;
-	int			test = -1; /* test all */
+
+	enum usb_msc_test_case	test = MSC_TEST_ALL; /* test all */
 
 	char			*output = NULL;
 
