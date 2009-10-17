@@ -228,8 +228,8 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 		break;
 	}
 
-	printf("[ test %d written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-			test, transferred, unit, transferred > 1 ? "s" : "",
+	printf("[ test %d buflen %d written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+			test, msc->size, transferred, unit, transferred > 1 ? "s" : "",
 			msc->read_tput, msc->write_tput);
 
 	fflush(stdout);
