@@ -65,6 +65,7 @@ struct usb_msc_test {
 
 	char		*txbuf;		/* send buffer */
 	char		*rxbuf;		/* receive buffer*/
+	char		*output;	/* writing to... */
 };
 
 /**
@@ -174,6 +175,30 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 	diff += end->tv_usec - start->tv_usec;
 
 	return (float) size / ((diff / 1000000.0) * 1024);
+}
+
+static void report_progress(struct usb_msc_test *msc)
+{
+	float		transferred = 0;
+	int		i;
+	char		*unit = NULL;
+
+	transferred = (float) msc->transferred;
+
+	for (i = 0; i < ARRAY_SIZE(units); i++) {
+		if (transferred > 1024.0) {
+			transferred /= 1024.0;
+			continue;
+		}
+		unit = units[i];
+		break;
+	}
+
+	printf("[ %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+			msc->output, transferred, unit, transferred > 1 ? "s" : "",
+			msc->read_tput, msc->write_tput);
+
+	fflush(stdout);
 }
 
 /**
@@ -449,6 +474,7 @@ int main(int argc, char *argv[])
 
 	msc->count = count;
 	msc->size = size;
+	msc->output = output;
 
 	ret = alloc_and_init_buffer(msc);
 	if (ret < 0) {
@@ -482,34 +508,14 @@ int main(int argc, char *argv[])
 	sync();
 
 	while (endless || count > 0) {
-		float		transferred = 0;
-		int		i;
-		char		*unit = NULL;
-
 		ret = do_test(msc);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
 		}
-
-		transferred = (float) msc->transferred;
-
-		for (i = 0; i < ARRAY_SIZE(units); i++) {
-			if (transferred > 1024.0) {
-				transferred /= 1024.0;
-				continue;
-			}
-			unit = units[i];
-			break;
-		}
-
 		count--;
 
-		printf("[ using %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-				output, transferred, unit, transferred > 1 ? "s" : "",
-				msc->read_tput, msc->write_tput);
-
-		fflush(stdout);
+		report_progress(msc);
 	}
 
 	printf("\n");
