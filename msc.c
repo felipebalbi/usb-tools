@@ -350,9 +350,16 @@ err:
 /**
  * do_test - Write, Read and Verify
  * @msc:	Mass Storage Test Context
+ * @test:	test number
  */
-static int do_test(struct usb_msc_test *msc)
+static int do_test(struct usb_msc_test *msc, int test)
 {
+	if (test > 0) {
+		printf("%s: test %d not implemented yet\n",
+				__func__, test);
+		return -1;
+	}
+
 	return do_test_simple(msc, msc->size);
 }
 
@@ -360,6 +367,7 @@ static void usage(char *prog)
 {
 	printf("Usage: %s\n\
 			--output, -o	Block device to write to\n\
+			--test, -t	Test number [0 - 21]\n\
 			--size, -s	Size of the internal buffers\n\
 			--count, -c	Iteration count\n\
 			--debug, -d	Enables debugging messages\n\
@@ -371,6 +379,11 @@ static struct option msc_opts[] = {
 		.name		= "output",
 		.has_arg	= 1,
 		.val		= 'o',
+	},
+	{
+		.name		= "test",	/* test number */
+		.has_arg	= 1,
+		.val		= 't',
 	},
 	{
 		.name		= "size",	/* rx/tx buffer sizes */
@@ -402,6 +415,7 @@ int main(int argc, char *argv[])
 	unsigned		endless = 1;
 	int			count = 0; /* infinit by default */
 	int			ret = 0;
+	int			test = -1; /* test all */
 
 	char			*output = NULL;
 
@@ -410,13 +424,17 @@ int main(int argc, char *argv[])
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:s:c:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:dh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
 		case 'o':
 			output = optarg;
+			break;
+
+		case 't':
+			test = atoi(optarg);
 			break;
 
 		case 's':
@@ -508,7 +526,7 @@ int main(int argc, char *argv[])
 	sync();
 
 	while (endless || count > 0) {
-		ret = do_test(msc);
+		ret = do_test(msc, test);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
