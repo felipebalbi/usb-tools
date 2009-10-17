@@ -479,6 +479,8 @@ int main(int argc, char *argv[])
 		fflush(stdout);
 	}
 
+	printf("\n");
+
 	close(msc->fd);
 	free(msc->rxbuf);
 	free(msc);
