@@ -81,13 +81,13 @@ enum usb_msc_test_case {
 	MSC_TEST_SG_32SECT,		/* SG 32 sectors at a time */
 	MSC_TEST_SG_64SECT,		/* SG 64 sectors at a time */
 	MSC_TEST_SG_128SECT,            /* SG 128 sectors at a time */
-	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
-	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
-	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
 	MSC_TEST_READ_PAST_LAST,	/* read extends over the last sector */
 	MSC_TEST_READ_START_LAST,	/* read starts over the last sector */
 	MSC_TEST_WRITE_PAST_LAST,	/* write extends over the last sector */
 	MSC_TEST_WRITE_START_LAST,	/* write start over the last sector */
+	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
+	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
+	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
 	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
 	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
 };
@@ -433,6 +433,41 @@ err:
 }
 
 /* ------------------------------------------------------------------------- */
+
+/**
+ * do_test_read_past_last - attempt to read past last sector
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_read_past_last(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+
+	/* seek to one sector less then needed */
+	ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+			SEEK_SET);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = do_read(msc, msc->size);
+	if (ret >=  0) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	report_progress(msc, MSC_TEST_READ_PAST_LAST);
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
 
 /**
  * do_test_sg_128sect - SG write/read/verify 8 sectors at a time
@@ -980,6 +1015,9 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		break;
 	case MSC_TEST_SG_128SECT:
 		ret = do_test_sg_128sect(msc);
+		break;
+	case MSC_TEST_READ_PAST_LAST:
+		ret = do_test_read_past_last(msc);
 		break;
 	default:
 		printf("%s: test %d not implemented yet\n",

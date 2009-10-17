@@ -118,6 +118,10 @@ do
 	echo "test 9: scatter/gather for 128-sectors buflen 64k"
 	./msc -t 9 -o $OUTPUT -s 65536 -c $COUNT
 
+	# Read past the last sector
+	echo "test 10: read over the end of the block device"
+	./msc -t 10 -o $OUTPUT -s 65536 -c 1
+
 	echo "Test suite ended: $(date)
 	"
 done
