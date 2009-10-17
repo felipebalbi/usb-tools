@@ -59,6 +59,7 @@ struct usb_msc_test {
 	int		fd;		/* /dev/sd?? */
 	int		count;		/* iteration count */
 
+	unsigned	sect_size;	/* sector size */
 	unsigned	size;		/* buffer size */
 
 	off_t		offset;		/* current offset */
@@ -355,27 +356,55 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 /**
  * do_test_simple - write/read/verify @size bytes
  * @msc:	Mass Storage Test Context
- * @bytes:	Amount of data to transfer
  */
-static int do_test_simple(struct usb_msc_test *msc, unsigned bytes)
+static int do_test_simple(struct usb_msc_test *msc)
 {
 	int			ret = 0;
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
-		ret = do_write(msc, bytes);
+		ret = do_write(msc, msc->size);
 		if (ret < 0)
 			break;
 
-		ret = do_read(msc, bytes);
+		ret = do_read(msc, msc->size);
 		if (ret < 0)
 			break;
 
-		ret = do_verify(msc, bytes);
+		ret = do_verify(msc, msc->size);
 		if (ret < 0)
 			break;
 
 		report_progress(msc, MSC_TEST_SIMPLE);
+		i++;
+	}
+
+	return ret;
+}
+
+/**
+ * do_test_1sect - write/read/verify one sector at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_1sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_read(msc, msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, msc->sect_size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_1SECT);
 		i++;
 	}
 
@@ -393,10 +422,18 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 
 	switch (test) {
 	case MSC_TEST_SIMPLE:
-		ret = do_test_simple(msc, msc->size);
+		ret = do_test_simple(msc);
 		if (ret < 0) {
 			printf("%s: test %d: failed\n", __func__,
 					MSC_TEST_SIMPLE);
+			return ret;
+		}
+		break;
+	case MSC_TEST_1SECT:
+		ret = do_test_1sect(msc);
+		if (ret < 0) {
+			printf("%s: test %d failed\n", __func__,
+					MSC_TEST_1SECT);
 			return ret;
 		}
 		break;
@@ -457,6 +494,7 @@ int main(int argc, char *argv[])
 	struct usb_msc_test	*msc;
 
 	uint64_t		blksize;
+	unsigned		sect_size;
 	unsigned		size = 0;
 	unsigned		count = 100; /* 100 loops by default */
 	int			ret = 0;
@@ -563,8 +601,15 @@ int main(int argc, char *argv[])
 		goto err3;
 	}
 
+	ret = ioctl(msc->fd, BLKSSZGET, &sect_size);
+	if (ret < 0 || sect_size == 0) {
+		DBG("%s: could not get sector size\n", __func__);
+		goto err3;
+	}
+
 	msc->psize = blksize;
 	msc->pempty = blksize;
+	msc->sect_size = sect_size;
 
 	DBG("%s: file descriptor %d size %.2f MB\n", __func__, msc->fd,
 			(float) msc->psize / 1024 / 1024);
