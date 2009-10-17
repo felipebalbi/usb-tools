@@ -179,16 +179,17 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 /**
  * do_write - Write txbuf to fd
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of bytes to write
  */
-static int do_write(struct usb_msc_test *msc)
+static int do_write(struct usb_msc_test *msc, unsigned bytes)
 {
 	int			done = 0;
 	int			ret;
 
 	char			*buf = msc->txbuf;
 
-	while (done < msc->size) {
-		unsigned	size = msc->size - done;
+	while (done < bytes) {
+		unsigned	size = bytes - done;
 
 		if (size > msc->pempty) {
 			DBG("%s: size too big\n", __func__);
@@ -238,14 +239,14 @@ err:
 /**
  * do_read - Read from fd to rxbuf
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of data to read
  */
-static int do_read(struct usb_msc_test *msc)
+static int do_read(struct usb_msc_test *msc, unsigned bytes)
 {
-	unsigned		size = msc->size;
 	int			done = 0;
 	int			ret;
 
-	off_t			previous = msc->offset - msc->size;
+	off_t			previous = msc->offset - bytes;
 
 	char			*buf = msc->rxbuf;
 
@@ -255,9 +256,9 @@ static int do_read(struct usb_msc_test *msc)
 		goto err;
 	}
 
-	while (done < size) {
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
-		ret = read(msc->fd, buf + done, size - done);
+		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
 			perror("do_read");
 			goto err;
@@ -278,13 +279,13 @@ err:
 /**
  * do_verify - Verify consistency of data
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of data to verify
  */
-static int do_verify(struct usb_msc_test *msc)
+static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 {
-	unsigned		size = msc->size;
 	int			i;
 
-	for (i = 0; i < size; i++)
+	for (i = 0; i < bytes; i++)
 		if (msc->txbuf[i] != msc->rxbuf[i]) {
 			printf("%s: byte %d failed [%02x %02x]\n", __func__,
 					i, msc->txbuf[i], msc->rxbuf[i]);
@@ -302,15 +303,15 @@ static int do_test(struct usb_msc_test *msc)
 {
 	int			ret;
 
-	ret = do_write(msc);
+	ret = do_write(msc, msc->size);
 	if (ret < 0)
 		goto err;
 
-	ret = do_read(msc);
+	ret = do_read(msc, msc->size);
 	if (ret < 0)
 		goto err;
 
-	ret = do_verify(msc);
+	ret = do_verify(msc, msc->size);
 	if (ret < 0)
 		goto err;
 
