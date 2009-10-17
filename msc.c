@@ -75,12 +75,11 @@ enum usb_msc_test_case {
 	MSC_TEST_8SECT,			/* 8 sectors at a time */
 	MSC_TEST_32SECT,		/* 32 sectors at a time */
 	MSC_TEST_64SECT,		/* 64 sectors at a time */
-	MSC_TEST_128SECT,		/* 128 sectors at a time */
 	MSC_TEST_SG_2SECT,		/* SG 2 sectors at a time */
 	MSC_TEST_SG_8SECT,		/* SG 8 sectors at a time */
 	MSC_TEST_SG_32SECT,		/* SG 32 sectors at a time */
 	MSC_TEST_SG_64SECT,		/* SG 64 sectors at a time */
-	MSC_TEST_SG_128SECT,		/* SG 128 sectors at a time */
+	MSC_TEST_SG_128SECT,            /* SG 128 sectors at a time */
 	MSC_TEST_VARY,			/* Varying buffer size */
 	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
 	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
@@ -92,6 +91,8 @@ enum usb_msc_test_case {
 	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
 	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
 };
+
+/* ------------------------------------------------------------------------- */
 
 /**
  * How it works:
@@ -234,6 +235,8 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 	fflush(stdout);
 }
 
+/* ------------------------------------------------------------------------- */
+
 /**
  * do_write - Write txbuf to fd
  * @msc:	Mass Storage Test Context
@@ -351,35 +354,6 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 		}
 
 	return 0;
-}
-
-/**
- * do_test_simple - write/read/verify @size bytes
- * @msc:	Mass Storage Test Context
- */
-static int do_test_simple(struct usb_msc_test *msc)
-{
-	int			ret = 0;
-	int			i;
-
-	for (i = 0; i < msc->count; i++) {
-		ret = do_write(msc, msc->size);
-		if (ret < 0)
-			break;
-
-		ret = do_read(msc, msc->size);
-		if (ret < 0)
-			break;
-
-		ret = do_verify(msc, msc->size);
-		if (ret < 0)
-			break;
-
-		report_progress(msc, MSC_TEST_SIMPLE);
-		i++;
-	}
-
-	return ret;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -501,6 +475,37 @@ static int do_test_1sect(struct usb_msc_test *msc)
 }
 
 /**
+ * do_test_simple - write/read/verify @size bytes
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_simple(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		ret = do_read(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_SIMPLE);
+		i++;
+	}
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/**
  * do_test - Write, Read and Verify
  * @msc:	Mass Storage Test Context
  * @test:	test number
@@ -558,6 +563,8 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 
 	return 0;
 }
+
+/* ------------------------------------------------------------------------- */
 
 static void usage(char *prog)
 {
