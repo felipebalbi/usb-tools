@@ -81,7 +81,6 @@ enum usb_msc_test_case {
 	MSC_TEST_SG_32SECT,		/* SG 32 sectors at a time */
 	MSC_TEST_SG_64SECT,		/* SG 64 sectors at a time */
 	MSC_TEST_SG_128SECT,            /* SG 128 sectors at a time */
-	MSC_TEST_VARY,			/* Varying buffer size */
 	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
 	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
 	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
