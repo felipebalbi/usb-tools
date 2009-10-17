@@ -360,25 +360,26 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
  */
 static int do_test_simple(struct usb_msc_test *msc, unsigned bytes)
 {
-	int			ret;
+	int			ret = 0;
+	int			i;
 
-	ret = do_write(msc, bytes);
-	if (ret < 0)
-		goto err;
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, bytes);
+		if (ret < 0)
+			break;
 
-	ret = do_read(msc, bytes);
-	if (ret < 0)
-		goto err;
+		ret = do_read(msc, bytes);
+		if (ret < 0)
+			break;
 
-	ret = do_verify(msc, bytes);
-	if (ret < 0)
-		goto err;
+		ret = do_verify(msc, bytes);
+		if (ret < 0)
+			break;
 
-	report_progress(msc, MSC_TEST_SIMPLE);
+		report_progress(msc, MSC_TEST_SIMPLE);
+		i++;
+	}
 
-	return 0;
-
-err:
 	return ret;
 }
 
@@ -458,8 +459,7 @@ int main(int argc, char *argv[])
 
 	uint64_t		blksize;
 	unsigned		size = 0;
-	unsigned		endless = 1;
-	int			count = 0; /* infinit by default */
+	int			count = -1; /* infinit by default */
 	int			ret = 0;
 
 	enum usb_msc_test_case	test = MSC_TEST_ALL; /* test all */
@@ -503,10 +503,9 @@ int main(int argc, char *argv[])
 		case 'c':
 			count = atoi(optarg);
 			if (count <= 0) {
-				DBG("%s: will loop forever\n", __func__);
-				break;
+				DBG("%s: invalid parameter\n", __func__);
+				goto err0;
 			}
-			endless = 0;
 			break;
 
 		case 'd':
@@ -572,13 +571,10 @@ int main(int argc, char *argv[])
 	 */
 	sync();
 
-	while (endless || count > 0) {
-		ret = do_test(msc, test);
-		if (ret < 0) {
-			DBG("%s: test failed\n", __func__);
-			goto err3;
-		}
-		count--;
+	ret = do_test(msc, test);
+	if (ret < 0) {
+		DBG("%s: test failed\n", __func__);
+		goto err3;
 	}
 
 	printf("\n");
