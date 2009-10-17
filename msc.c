@@ -383,6 +383,35 @@ static int do_test_simple(struct usb_msc_test *msc)
 }
 
 /**
+ * do_test_32sect - write/read/verify 32 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_32sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_read(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_32SECT);
+		i++;
+	}
+
+	return ret;
+}
+
+/**
  * do_test_8sect - write/read/verify 8 sectors at a time
  * @msc:	Mass Storage Test Context
  */
@@ -471,6 +500,14 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		if (ret < 0) {
 			printf("%s: test %d failed\n", __func__,
 					MSC_TEST_8SECT);
+			return ret;
+		}
+		break;
+	case MSC_TEST_32SECT:
+		ret = do_test_32sect(msc);
+		if (ret < 0) {
+			printf("%s: test %d failed\n", __func__,
+					MSC_TEST_32SECT);
 			return ret;
 		}
 		break;
