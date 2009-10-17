@@ -296,22 +296,23 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 }
 
 /**
- * do_test - Write, Read and Verify
+ * do_test_simple - write/read/verify @size bytes
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of data to transfer
  */
-static int do_test(struct usb_msc_test *msc)
+static int do_test_simple(struct usb_msc_test *msc, unsigned bytes)
 {
 	int			ret;
 
-	ret = do_write(msc, msc->size);
+	ret = do_write(msc, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_read(msc, msc->size);
+	ret = do_read(msc, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_verify(msc, msc->size);
+	ret = do_verify(msc, bytes);
 	if (ret < 0)
 		goto err;
 
@@ -319,6 +320,15 @@ static int do_test(struct usb_msc_test *msc)
 
 err:
 	return ret;
+}
+
+/**
+ * do_test - Write, Read and Verify
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test(struct usb_msc_test *msc)
+{
+	return do_test_simple(msc, msc->size);
 }
 
 static void usage(char *prog)
