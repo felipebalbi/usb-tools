@@ -436,6 +436,54 @@ err:
 /* ------------------------------------------------------------------------- */
 
 /**
+ * do_test_sg_8sect - SG write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_8sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 8 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			break;
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_SG_8SECT);
+		i++;
+	}
+
+	return ret;
+}
+
+/**
  * do_test_sg_2sect - SG write/read/verify 2 sectors at a time
  * @msc:	Mass Storage Test Context
  */
@@ -685,6 +733,14 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		if (ret < 0) {
 			printf("%s: test %d failed\n", __func__,
 					MSC_TEST_SG_2SECT);
+			return ret;
+		}
+		break;
+	case MSC_TEST_SG_8SECT:
+		ret = do_test_sg_8sect(msc);
+		if (ret < 0) {
+			printf("%s: test %d failed\n", __func__,
+					MSC_TEST_SG_8SECT);
 			return ret;
 		}
 		break;
