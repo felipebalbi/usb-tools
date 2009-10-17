@@ -57,6 +57,7 @@ struct usb_msc_test {
 	float		write_tput;	/* write throughput */
 
 	int		fd;		/* /dev/sd?? */
+	int		count;		/* iteration count */
 
 	unsigned	size;		/* buffer size */
 
@@ -324,6 +325,7 @@ static void usage(char *prog)
 	printf("Usage: %s\n\
 			--output, -o	Block device to write to\n\
 			--size, -s	Size of the internal buffers\n\
+			--count, -c	Iteration count\n\
 			--debug, -d	Enables debugging messages\n\
 			--help, -h	This help\n", prog);
 }
@@ -338,6 +340,11 @@ static struct option msc_opts[] = {
 		.name		= "size",	/* rx/tx buffer sizes */
 		.has_arg	= 1,
 		.val		= 's',
+	},
+	{
+		.name		= "count",	/* how many iterations */
+		.has_arg	= 1,
+		.val		= 'c',
 	},
 	{
 		.name		= "debug",
@@ -356,15 +363,18 @@ int main(int argc, char *argv[])
 
 	uint64_t		blksize;
 	unsigned		size = 0;
+	unsigned		endless = 1;
+	int			count = 0; /* infinit by default */
 	int			ret = 0;
 
 	char			*output = NULL;
+
 
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:s:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:s:c:dh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -387,6 +397,15 @@ int main(int argc, char *argv[])
 				ret = -EINVAL;
 				goto err0;
 			}
+			break;
+
+		case 'c':
+			count = atoi(optarg);
+			if (count <= 0) {
+				DBG("%s: will loop forever\n", __func__);
+				break;
+			}
+			endless = 0;
 			break;
 
 		case 'd':
@@ -417,6 +436,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: buffer size %d\n", __func__, size);
 
+	msc->count = count;
 	msc->size = size;
 
 	ret = alloc_and_init_buffer(msc);
@@ -450,7 +470,7 @@ int main(int argc, char *argv[])
 	 */
 	sync();
 
-	while (1) {
+	while (endless || count > 0) {
 		float		transferred = 0;
 		int		i;
 		char		*unit = NULL;
@@ -471,6 +491,8 @@ int main(int argc, char *argv[])
 			unit = units[i];
 			break;
 		}
+
+		count--;
 
 		printf("[ using %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
 				output, transferred, unit, transferred > 1 ? "s" : "",
