@@ -228,8 +228,8 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 		break;
 	}
 
-	printf("[ test %d buflen %d written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-			test, msc->size, transferred, unit, transferred > 1 ? "s" : "",
+	printf("\rtest %d: sent %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ... ",
+			test, transferred, unit, transferred > 1 ? "s" : " ",
 			msc->read_tput, msc->write_tput);
 
 	fflush(stdout);
@@ -348,7 +348,7 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 
 	for (i = 0; i < bytes; i++)
 		if (msc->txbuf[i] != msc->rxbuf[i]) {
-			printf("%s: byte %d failed [%02x %02x]\n", __func__,
+			DBG("%s: byte %d failed [%02x %02x]\n", __func__,
 					i, msc->txbuf[i], msc->rxbuf[i]);
 			return -EINVAL;
 		}
@@ -493,6 +493,11 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -554,6 +559,11 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_64SECT);
 		i++;
 	}
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
 
 	return ret;
 }
@@ -617,6 +627,11 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -678,6 +693,11 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_8SECT);
 		i++;
 	}
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
 
 	return ret;
 }
@@ -741,6 +761,11 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -769,6 +794,11 @@ static int do_test_64sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_64SECT);
 		i++;
 	}
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
 
 	return ret;
 }
@@ -799,6 +829,11 @@ static int do_test_32sect(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -827,6 +862,11 @@ static int do_test_8sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_8SECT);
 		i++;
 	}
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
 
 	return ret;
 }
@@ -857,6 +897,11 @@ static int do_test_1sect(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -886,6 +931,11 @@ static int do_test_simple(struct usb_msc_test *msc)
 		i++;
 	}
 
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
 	return ret;
 }
 
@@ -903,83 +953,33 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 	switch (test) {
 	case MSC_TEST_SIMPLE:
 		ret = do_test_simple(msc);
-		if (ret < 0) {
-			printf("%s: test %d: failed\n", __func__,
-					MSC_TEST_SIMPLE);
-			return ret;
-		}
 		break;
 	case MSC_TEST_1SECT:
 		ret = do_test_1sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_1SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_8SECT:
 		ret = do_test_8sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_8SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_32SECT:
 		ret = do_test_32sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_32SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_64SECT:
 		ret = do_test_64sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_64SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_SG_2SECT:
 		ret = do_test_sg_2sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_SG_2SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_SG_8SECT:
 		ret = do_test_sg_8sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_SG_8SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_SG_32SECT:
 		ret = do_test_sg_32sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_SG_32SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_SG_64SECT:
 		ret = do_test_sg_64sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_SG_64SECT);
-			return ret;
-		}
 		break;
 	case MSC_TEST_SG_128SECT:
 		ret = do_test_sg_128sect(msc);
-		if (ret < 0) {
-			printf("%s: test %d failed\n", __func__,
-					MSC_TEST_SG_128SECT);
-			return ret;
-		}
 		break;
 	default:
 		printf("%s: test %d not implemented yet\n",
@@ -987,7 +987,7 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		ret = -ENOTSUP;
 	}
 
-	return 0;
+	return ret;
 }
 
 /* ------------------------------------------------------------------------- */
