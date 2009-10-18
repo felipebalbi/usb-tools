@@ -138,6 +138,10 @@ do
 	echo "test 14: write 8 random size sgs, read 1 sg"
 	./msc -t 14 -o $OUTPUT -s 65536 -c $COUNT
 
+	# write and read 8 random size sgs
+	echo "test 15: write and read 8 random size sgs"
+	./msc -t 15 -o $OUTPUT -s 65536 -c $COUNT
+
 	echo "Test suite ended: $(date)
 	"
 done
