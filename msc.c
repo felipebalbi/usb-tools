@@ -434,6 +434,41 @@ err:
 /* ------------------------------------------------------------------------- */
 
 /**
+ * do_test_write_past_last - attempt to write past last sector
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_write_past_last(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+
+	/* seek to one sector less then needed */
+	ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+			SEEK_SET);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = do_write(msc, msc->size);
+	if (ret >=  0) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
  * do_test_lseek_past_last - attempt to read starting past the last sector
  * @msc:	Mass Storage Test Context
  */
@@ -1049,6 +1084,9 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		break;
 	case MSC_TEST_LSEEK_PAST_LAST:
 		ret = do_test_lseek_past_last(msc);
+		break;
+	case MSC_TEST_WRITE_PAST_LAST:
+		ret = do_test_write_past_last(msc);
 		break;
 	default:
 		printf("%s: test %d not implemented yet\n",

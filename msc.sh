@@ -126,6 +126,10 @@ do
 	echo "test 11: lseek past the end of the block device"
 	./msc -t 11 -o $OUTPUT -s 65536 -c 1
 
+	# Write past the last sector
+	echo "test 12: write over the end of the block device"
+	./msc -t 12 -o $OUTPUT -s 65536 -c 1
+
 	echo "Test suite ended: $(date)
 	"
 done
