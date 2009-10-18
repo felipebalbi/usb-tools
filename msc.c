@@ -93,22 +93,6 @@ enum usb_msc_test_case {
 
 /* ------------------------------------------------------------------------- */
 
-/**
- * How it works:
- *
- * 1. Fill up a partition with a known buffer made by a sequencial
- *    numbering scheme.
- *
- * 2. Read back every 512-bytes from each block and compare with our magic
- *    buffer to see if the data was sucessfully written.
- *
- * 3. During the operation also measure throughput.
- *
- * 4. Steps 1-3 will be repeated until we send a signal to the application
- *    to stop. At that time we will free() every allocated resource and close
- *    the fd.
- */
-
 /* units which will be used for pretty printing the amount of data
  * transferred
  */
