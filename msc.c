@@ -354,6 +354,7 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 /**
  * do_writev - SG Write txbuf to fd
  * @msc:	Mass Storage Test Context
+ * @iov:	iovec structure pointer
  * @count:	how many transfers
  */
 static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
@@ -401,6 +402,7 @@ err:
 /**
  * do_read - SG Read from fd to rxbuf
  * @msc:	Mass Storage Test Context
+ * @iov:	iovec structure pointer
  * @count:	how many transfers
  */
 static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
