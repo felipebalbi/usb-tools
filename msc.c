@@ -899,7 +899,6 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SG_128SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -966,7 +965,6 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SG_64SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1033,7 +1031,6 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SG_32SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1100,7 +1097,6 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SG_8SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1167,7 +1163,6 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SG_2SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1201,7 +1196,6 @@ static int do_test_64sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_64SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1235,7 +1229,6 @@ static int do_test_32sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_32SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1269,7 +1262,6 @@ static int do_test_8sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_8SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1303,7 +1295,6 @@ static int do_test_1sect(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_1SECT);
-		i++;
 	}
 
 	if (ret == 0)
@@ -1337,7 +1328,6 @@ static int do_test_simple(struct usb_msc_test *msc)
 			break;
 
 		report_progress(msc, MSC_TEST_SIMPLE);
-		i++;
 	}
 
 	if (ret == 0)
