@@ -434,29 +434,129 @@ err:
 /* ------------------------------------------------------------------------- */
 
 /**
+ * do_test_sg_random_read - write 1 64k sg and read in several of random size
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_random_read(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		sect_size = msc->sect_size;
+	unsigned		len = msc->size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	for (i = 0; i < msc->count; i++) {
+		ret = lseek(msc->fd, 0, SEEK_CUR);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		msc->offset = ret;
+
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_RANDOM_READ);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
  * do_test_write_past_last - attempt to write past last sector
  * @msc:	Mass Storage Test Context
  */
 static int do_test_write_past_last(struct usb_msc_test *msc)
 {
 	int			ret = 0;
+	int			i;
 
-	/* seek to one sector less then needed */
-	ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
-			SEEK_SET);
-	if (ret < 0) {
-		DBG("%s: lseek failed\n", __func__);
-		ret = -EINVAL;
-		goto err;
+	for (i = 0; i < msc->count; i++) {
+		/* seek to one sector less then needed */
+		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+				SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = do_write(msc, msc->size);
+		if (ret >=  0) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
 	}
-
-	ret = do_write(msc, msc->size);
-	if (ret >=  0) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
 
 	printf("success\n");
 
@@ -475,17 +575,19 @@ err:
 static int do_test_lseek_past_last(struct usb_msc_test *msc)
 {
 	int			ret = 0;
+	int			i;
 
-	/* seek to one sector less then needed */
-	ret = lseek(msc->fd, msc->psize + msc->sect_size,
-			SEEK_SET);
-	if (ret == 0) {
-		DBG("%s: lseek passed\n", __func__);
-		ret = -EINVAL;
-		goto err;
+	for (i = 0; i < msc->count; i++) {
+		ret = lseek(msc->fd, msc->psize + msc->sect_size,
+				SEEK_SET);
+		if (ret == 0) {
+			DBG("%s: lseek passed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
 	}
-
-	report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
 
 	printf("success\n");
 
@@ -504,23 +606,26 @@ err:
 static int do_test_read_past_last(struct usb_msc_test *msc)
 {
 	int			ret = 0;
+	int			i;
 
-	/* seek to one sector less then needed */
-	ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
-			SEEK_SET);
-	if (ret < 0) {
-		DBG("%s: lseek failed\n", __func__);
-		ret = -EINVAL;
-		goto err;
+	for (i = 0; i < msc->count; i++) {
+		/* seek to one sector less then needed */
+		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+				SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = do_read(msc, msc->size);
+		if (ret >=  0) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_READ_PAST_LAST);
 	}
-
-	ret = do_read(msc, msc->size);
-	if (ret >=  0) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	report_progress(msc, MSC_TEST_READ_PAST_LAST);
 
 	printf("success\n");
 
@@ -1087,6 +1192,9 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		break;
 	case MSC_TEST_WRITE_PAST_LAST:
 		ret = do_test_write_past_last(msc);
+		break;
+	case MSC_TEST_SG_RANDOM_READ:
+		ret = do_test_sg_random_read(msc);
 		break;
 	default:
 		printf("%s: test %d not implemented yet\n",

@@ -120,15 +120,19 @@ do
 
 	# Read past the last sector
 	echo "test 10: read over the end of the block device"
-	./msc -t 10 -o $OUTPUT -s 65536 -c 1
+	./msc -t 10 -o $OUTPUT -s 65536 -c $COUNT
 
 	# Lseek past the last sector
 	echo "test 11: lseek past the end of the block device"
-	./msc -t 11 -o $OUTPUT -s 65536 -c 1
+	./msc -t 11 -o $OUTPUT -s 65536 -c $COUNT
 
 	# Write past the last sector
 	echo "test 12: write over the end of the block device"
-	./msc -t 12 -o $OUTPUT -s 65536 -c 1
+	./msc -t 12 -o $OUTPUT -s 65536 -c $COUNT
+
+	# write 1 sg, read in 8 random size sgs
+	echo "test 13: write 1 sg, read 8 random size sgs"
+	./msc -t 13 -o $OUTPUT -s 65536 -c $COUNT
 
 	echo "Test suite ended: $(date)
 	"
