@@ -163,6 +163,20 @@ do
 	echo "test 15: write and read 8 random size sgs"
 	./msc -t 15 -o $OUTPUT -s 65536 -c $COUNT
 
+	# read with differently allocated buffers
+	echo "test 16a: read with heap allocated buffer"
+	./msc -t 16 -o $OUTPUT -s 65536 -c $COUNT -b heap
+
+	echo "test 16b: read with stach allocated buffer"
+	./msc -t 16 -o $OUTPUT -s 65536 -c $COUNT -b stack
+
+	# write with differently allocated buffers
+	echo "test 17a: write with heap allocated buffer"
+	./msc -t 17 -o $OUTPUT -s 65536 -c $COUNT -b heap
+
+	echo "test 17b: write with stach allocated buffer"
+	./msc -t 17 -o $OUTPUT -s 65536 -c $COUNT -b stack
+
 	echo "Test suite ended: $(date)
 	"
 done

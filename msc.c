@@ -37,11 +37,22 @@
 #include <sys/mount.h>
 #include <sys/uio.h>
 
+#define BUFLEN			65536
+#define PAGE_SIZE		4096
+
 static unsigned debug;
 
 /* for measuring throughput */
 static struct timeval		start;
 static struct timeval		end;
+
+/* different buffers */
+static char			*txbuf_heap;
+static char			*rxbuf_heap;
+
+/* stack allocated buffers aligned in page size */
+static char	txbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
+static char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -62,6 +73,7 @@ struct usb_msc_test {
 
 	unsigned	sect_size;	/* sector size */
 	unsigned	size;		/* buffer size */
+	unsigned	type;		/* buffer type */
 
 	off_t		offset;		/* current offset */
 
@@ -89,6 +101,11 @@ enum usb_msc_test_case {
 	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
 	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
 	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
+};
+
+enum usb_msc_buffer_type {
+	MSC_BUFFER_HEAP,
+	MSC_BUFFER_STACK,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -119,6 +136,9 @@ static void init_buffer(struct usb_msc_test *msc)
 
 	for (i = 0; i < msc->size; i++)
 		buf[i] = i % msc->size;
+
+	for (i = 0; i < BUFLEN; i++)
+		txbuf_stack[i] = i;
 }
 
 /**
@@ -148,24 +168,23 @@ static char *alloc_buffer(unsigned size)
 static int alloc_and_init_buffer(struct usb_msc_test *msc)
 {
 	int			ret = -ENOMEM;
-	char			*tmp;
 
-	tmp = alloc_buffer(msc->size);
-	if (!tmp) {
+	txbuf_heap = alloc_buffer(msc->size);
+	if (!txbuf_heap) {
 		DBG("%s: unable to allocate txbuf\n", __func__);
 		goto err0;
 	}
 
-	msc->txbuf = tmp;
+	msc->txbuf = txbuf_heap;
 	init_buffer(msc);
 
-	tmp = alloc_buffer(msc->size);
-	if (!tmp) {
+	rxbuf_heap = alloc_buffer(msc->size);
+	if (!rxbuf_heap) {
 		DBG("%s: unable to allocate rxbuf\n", __func__);
 		goto err1;
 	}
 
-	msc->rxbuf = tmp;
+	msc->rxbuf = rxbuf_heap;
 
 	return 0;
 
@@ -291,6 +310,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
 			DBG("%s: read failed\n", __func__);
+			perror("do_read");
 			goto err;
 		}
 
@@ -408,6 +428,90 @@ err:
 }
 
 /* ------------------------------------------------------------------------- */
+
+/**
+ * do_test_write_diff_buf - read with different buffer types
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_write_diff_buf(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	unsigned		type = msc->type;
+
+	switch (type) {
+	case MSC_BUFFER_HEAP:
+		msc->txbuf = txbuf_heap;
+		break;
+	case MSC_BUFFER_STACK:
+		msc->txbuf = txbuf_stack;
+		break;
+	default:
+		printf("%s: Unsupported type\n", __func__);
+		break;
+	}
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_WRITE_DIFF_BUF);
+	}
+
+	/* reset to default */
+	msc->txbuf = txbuf_heap;
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_read_diff_buf - read with different buffer types
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_read_diff_buf(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	unsigned		type = msc->type;
+
+	switch (type) {
+	case MSC_BUFFER_HEAP:
+		msc->rxbuf = rxbuf_heap;
+		break;
+	case MSC_BUFFER_STACK:
+		msc->rxbuf = rxbuf_stack;
+		break;
+	default:
+		printf("%s: Unsupported type\n", __func__);
+		break;
+	}
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_read(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_READ_DIFF_BUF);
+	}
+
+	/* reset to default */
+	msc->rxbuf = rxbuf_heap;
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
+	return ret;
+}
 
 /**
  * do_test_sg_random_both - write and read several of random size
@@ -1475,8 +1579,14 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 	case MSC_TEST_SG_RANDOM_BOTH:
 		ret = do_test_sg_random_both(msc);
 		break;
+	case MSC_TEST_READ_DIFF_BUF:
+		ret = do_test_read_diff_buf(msc);
+		break;
+	case MSC_TEST_WRITE_DIFF_BUF:
+		ret = do_test_write_diff_buf(msc);
+		break;
 	default:
-		printf("%s: test %d not implemented yet\n",
+		printf("%s: test %d is not supported\n",
 				__func__, test);
 		ret = -ENOTSUP;
 	}
@@ -1519,6 +1629,11 @@ static struct option msc_opts[] = {
 		.val		= 'c',
 	},
 	{
+		.name		= "buffer-type",	/* buffer type */
+		.has_arg	= 1,
+		.val		= 'b',
+	},
+	{
 		.name		= "debug",
 		.val		= 'd',
 	},
@@ -1537,18 +1652,18 @@ int main(int argc, char *argv[])
 	unsigned		sect_size;
 	unsigned		size = 0;
 	unsigned		count = 100; /* 100 loops by default */
+	unsigned		type = MSC_BUFFER_HEAP;
 	int			ret = 0;
 
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
 
-
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:b:dh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1585,6 +1700,17 @@ int main(int argc, char *argv[])
 			count = atoi(optarg);
 			if (count <= 0) {
 				DBG("%s: invalid parameter\n", __func__);
+				goto err0;
+			}
+			break;
+
+		case 'b':
+			if (!strncmp(optarg, "heap", 4)) {
+				type = MSC_BUFFER_HEAP;
+			} else if (!strncmp(optarg, "stack", 5)) {
+				type = MSC_BUFFER_STACK;
+			} else {
+				DBG("%s: unsuported buffer type\n", __func__);
 				goto err0;
 			}
 			break;
@@ -1650,6 +1776,7 @@ int main(int argc, char *argv[])
 	msc->psize = blksize;
 	msc->pempty = blksize;
 	msc->sect_size = sect_size;
+	msc->type = type;
 
 	DBG("%s: file descriptor %d size %.2f MB\n", __func__, msc->fd,
 			(float) msc->psize / 1024 / 1024);
