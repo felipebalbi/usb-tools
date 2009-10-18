@@ -434,6 +434,103 @@ err:
 /* ------------------------------------------------------------------------- */
 
 /**
+ * do_test_sg_random_write - write several of random size, read 1 64k
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_random_write(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		sect_size = msc->sect_size;
+	unsigned		len = msc->size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	for (i = 0; i < msc->count; i++) {
+		ret = lseek(msc->fd, 0, SEEK_CUR);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		msc->offset = ret;
+
+		ret = do_writev(msc, tiov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
  * do_test_sg_random_read - write 1 64k sg and read in several of random size
  * @msc:	Mass Storage Test Context
  */
@@ -1195,6 +1292,9 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		break;
 	case MSC_TEST_SG_RANDOM_READ:
 		ret = do_test_sg_random_read(msc);
+		break;
+	case MSC_TEST_SG_RANDOM_WRITE:
+		ret = do_test_sg_random_write(msc);
 		break;
 	default:
 		printf("%s: test %d not implemented yet\n",
