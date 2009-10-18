@@ -1,7 +1,7 @@
 #!/bin/sh
 
 OUTPUT=""
-COUNT=5000
+COUNT=5120
 
 TEMP=`getopt -o "o:c:h" -n 'msc.sh' -- "$@"`
 
