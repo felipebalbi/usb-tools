@@ -1601,12 +1601,13 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 static void usage(char *prog)
 {
 	printf("Usage: %s\n\
-			--output, -o	Block device to write to\n\
-			--test, -t	Test number [0 - 21]\n\
-			--size, -s	Size of the internal buffers\n\
-			--count, -c	Iteration count\n\
-			--debug, -d	Enables debugging messages\n\
-			--help, -h	This help\n", prog);
+			--output, -o		Block device to write to\n\
+			--test, -t		Test number [0 - 21]\n\
+			--size, -s		Size of the internal buffers\n\
+			--count, -c		Iteration count\n\
+			--buffer-type, -b	Buffer type (stack | heap)\n\
+			--debug, -d		Enables debugging messages\n\
+			--help, -h		This help\n", prog);
 }
 
 static struct option msc_opts[] = {
