@@ -134,11 +134,13 @@ static void init_buffer(struct usb_msc_test *msc)
 	int			i;
 	char			*buf = msc->txbuf;
 
+	srand(1024);
+
 	for (i = 0; i < msc->size; i++)
-		buf[i] = i % msc->size;
+		buf[i] = random() % (sizeof(buf) + 1);
 
 	for (i = 0; i < BUFLEN; i++)
-		txbuf_stack[i] = i;
+		txbuf_stack[i] = buf[i];
 }
 
 /**
