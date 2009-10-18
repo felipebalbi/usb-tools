@@ -259,7 +259,7 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		gettimeofday(&start, NULL);
 		ret = write(msc->fd, buf + done, size);
 		if (ret < 0) {
-			perror("do_write");
+			DBG("%s: write failed\n", __func__);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
@@ -320,7 +320,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 		gettimeofday(&start, NULL);
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
-			perror("do_read");
+			DBG("%s: read failed\n", __func__);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
@@ -368,7 +368,7 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 	gettimeofday(&start, NULL);
 	ret = writev(msc->fd, iov, count);
 	if (ret < 0) {
-		perror("do_writev");
+		DBG("%s: writev failed\n", __func__);
 		goto err;
 	}
 	gettimeofday(&end, NULL);
@@ -416,7 +416,7 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 	gettimeofday(&start, NULL);
 	ret = readv(msc->fd, iov, bytes);
 	if (ret < 0) {
-		perror("do_readv");
+		DBG("%s: readv failed\n", __func__);
 		goto err;
 	}
 	gettimeofday(&end, NULL);
