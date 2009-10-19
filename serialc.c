@@ -217,17 +217,21 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 /**
  * do_write - Write txbuf to fd
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to write
  */
-static int do_write(struct usb_serial_test *serial)
+static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			transferred = 0;
 	int			done = 0;
 	int			ret;
 
-	while (done < serial->size) {
+	serial->txbuf[0] = bytes >> 8;
+	serial->txbuf[1] = (bytes << 8) >> 8;
+
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
 		ret = libusb_bulk_transfer(serial->udevh, serial->eptx,
-				serial->txbuf + done, serial->size - done,
+				serial->txbuf + done, bytes - done,
 				&transferred, TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: failed to send data\n", __func__);
@@ -249,17 +253,18 @@ err:
 /**
  * do_read - Read from fd to rxbuf
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to read
  */
-static int do_read(struct usb_serial_test *serial)
+static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			transferred = 0;
 	int			done = 0;
 	int			ret;
 
-	while (done < serial->size) {
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
 		ret = libusb_bulk_transfer(serial->udevh, serial->eprx,
-				serial->rxbuf + done, serial->size - done,
+				serial->rxbuf + done, bytes - done,
 				&transferred, TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: failed to receive data\n", __func__);
@@ -280,13 +285,13 @@ err:
 /**
  * do_verify - Verify consistency of data
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to verify
  */
-static int do_verify(struct usb_serial_test *serial)
+static int do_verify(struct usb_serial_test *serial, uint16_t bytes)
 {
-	unsigned		size = serial->size;
 	int			i;
 
-	for (i = 0; i < size; i++)
+	for (i = 0; i < bytes; i++)
 		if (serial->txbuf[i] != serial->rxbuf[i]) {
 			printf("%s: byte %d failed [%02x %02x]\n", __func__,
 					i, serial->txbuf[i], serial->rxbuf[i]);
@@ -299,20 +304,22 @@ static int do_verify(struct usb_serial_test *serial)
 /**
  * do_test - Write, Read and Verify
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to transfer
  */
-static int do_test(struct usb_serial_test *serial)
+static int do_test(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			ret;
+	unsigned		n;
 
-	ret = do_write(serial);
+	ret = do_write(serial, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_read(serial);
+	ret = do_read(serial, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_verify(serial);
+	ret = do_verify(serial, bytes);
 	if (ret < 0)
 		goto err;
 
@@ -446,12 +453,19 @@ int main(int argc, char *argv[])
 		goto err2;
 	}
 
+	srand(1024);
+
 	while (1) {
 		float		transferred = 0;
 		int		i;
+		unsigned	n;
 		char		*unit = NULL;
 
-		ret = do_test(serial);
+		n = random() % (serial->size + 1);
+
+		DBG("%s sending %d bytes\n", __func__, n);
+
+		ret = do_test(serial, n);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
