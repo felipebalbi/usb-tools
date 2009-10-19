@@ -173,7 +173,7 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 {
 	int			ret;
 
-	/* for now this will only work with g_nokia, but we will
+	/* FIXME for now this will only work with g_nokia, but we will
 	 * extend this later in order to work with any u_serial
 	 * gadget driver
 	 */
@@ -189,6 +189,9 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 		DBG("%s: couldn't set altsetting\n", __func__);
 		goto err1;
 	}
+
+	serial->eprx = 0x82;
+	serial->eptx = 0x02;
 
 	return 0;
 
@@ -425,8 +428,6 @@ int main(int argc, char *argv[])
 	serial->size = size;
 	serial->vid = vid;
 	serial->pid = pid;
-	serial->eprx = 0x82;
-	serial->eptx = 0x02;
 
 	ret = alloc_and_init_buffer(serial);
 	if (ret < 0) {
@@ -492,6 +493,7 @@ int main(int argc, char *argv[])
 	release_interface(serial);
 	libusb_exit(context);
 	free(serial->rxbuf);
+	free(serial->txbuf);
 	free(serial);
 
 	return 0;
