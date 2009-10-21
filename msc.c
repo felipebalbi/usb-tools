@@ -35,12 +35,24 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mount.h>
+#include <sys/uio.h>
+
+#define BUFLEN			65536
+#define PAGE_SIZE		4096
 
 static unsigned debug;
 
 /* for measuring throughput */
 static struct timeval		start;
 static struct timeval		end;
+
+/* different buffers */
+static char			*txbuf_heap;
+static char			*rxbuf_heap;
+
+/* stack allocated buffers aligned in page size */
+static char	txbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
+static char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -57,30 +69,46 @@ struct usb_msc_test {
 	float		write_tput;	/* write throughput */
 
 	int		fd;		/* /dev/sd?? */
+	int		count;		/* iteration count */
 
+	unsigned	sect_size;	/* sector size */
 	unsigned	size;		/* buffer size */
+	unsigned	type;		/* buffer type */
 
 	off_t		offset;		/* current offset */
 
 	char		*txbuf;		/* send buffer */
 	char		*rxbuf;		/* receive buffer*/
+	char		*output;	/* writing to... */
 };
 
-/**
- * How it works:
- *
- * 1. Fill up a partition with a known buffer made by a sequencial
- *    numbering scheme.
- *
- * 2. Read back every 512-bytes from each block and compare with our magic
- *    buffer to see if the data was sucessfully written.
- *
- * 3. During the operation also measure throughput.
- *
- * 4. Steps 1-3 will be repeated until we send a signal to the application
- *    to stop. At that time we will free() every allocated resource and close
- *    the fd.
- */
+enum usb_msc_test_case {
+	MSC_TEST_SIMPLE = 0,		/* simple */
+	MSC_TEST_1SECT,			/* 1 sector at a time */
+	MSC_TEST_8SECT,			/* 8 sectors at a time */
+	MSC_TEST_32SECT,		/* 32 sectors at a time */
+	MSC_TEST_64SECT,		/* 64 sectors at a time */
+	MSC_TEST_SG_2SECT,		/* SG 2 sectors at a time */
+	MSC_TEST_SG_8SECT,		/* SG 8 sectors at a time */
+	MSC_TEST_SG_32SECT,		/* SG 32 sectors at a time */
+	MSC_TEST_SG_64SECT,		/* SG 64 sectors at a time */
+	MSC_TEST_SG_128SECT,            /* SG 128 sectors at a time */
+	MSC_TEST_READ_PAST_LAST,	/* read extends over the last sector */
+	MSC_TEST_LSEEK_PAST_LAST,	/* lseek over the end of the block device */
+	MSC_TEST_WRITE_PAST_LAST,	/* write start over the last sector */
+	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
+	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
+	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
+	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
+	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
+};
+
+enum usb_msc_buffer_type {
+	MSC_BUFFER_HEAP,
+	MSC_BUFFER_STACK,
+};
+
+/* ------------------------------------------------------------------------- */
 
 /* units which will be used for pretty printing the amount of data
  * transferred
@@ -106,8 +134,13 @@ static void init_buffer(struct usb_msc_test *msc)
 	int			i;
 	char			*buf = msc->txbuf;
 
+	srand(1024);
+
 	for (i = 0; i < msc->size; i++)
-		buf[i] = i % msc->size;
+		buf[i] = random() % (sizeof(buf) + 1);
+
+	for (i = 0; i < BUFLEN; i++)
+		txbuf_stack[i] = buf[i];
 }
 
 /**
@@ -137,24 +170,23 @@ static char *alloc_buffer(unsigned size)
 static int alloc_and_init_buffer(struct usb_msc_test *msc)
 {
 	int			ret = -ENOMEM;
-	char			*tmp;
 
-	tmp = alloc_buffer(msc->size);
-	if (!tmp) {
+	txbuf_heap = alloc_buffer(msc->size);
+	if (!txbuf_heap) {
 		DBG("%s: unable to allocate txbuf\n", __func__);
 		goto err0;
 	}
 
-	msc->txbuf = tmp;
+	msc->txbuf = txbuf_heap;
 	init_buffer(msc);
 
-	tmp = alloc_buffer(msc->size);
-	if (!tmp) {
+	rxbuf_heap = alloc_buffer(msc->size);
+	if (!rxbuf_heap) {
 		DBG("%s: unable to allocate rxbuf\n", __func__);
 		goto err1;
 	}
 
-	msc->rxbuf = tmp;
+	msc->rxbuf = rxbuf_heap;
 
 	return 0;
 
@@ -176,18 +208,53 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 }
 
 /**
+ * report_progess - reports the progress of @test
+ * @msc:	Mass Storage Test Context
+ * @test:	test case number
+ *
+ * each test case implementation is required to call this function
+ * in order for the user to get progress report.
+ */
+static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case test)
+{
+	float		transferred = 0;
+	int		i;
+	char		*unit = NULL;
+
+	transferred = (float) msc->transferred;
+
+	for (i = 0; i < ARRAY_SIZE(units); i++) {
+		if (transferred > 1024.0) {
+			transferred /= 1024.0;
+			continue;
+		}
+		unit = units[i];
+		break;
+	}
+
+	printf("\rtest %d: sent %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ... ",
+			test, transferred, unit, transferred > 1 ? "s" : " ",
+			msc->read_tput, msc->write_tput);
+
+	fflush(stdout);
+}
+
+/* ------------------------------------------------------------------------- */
+
+/**
  * do_write - Write txbuf to fd
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of bytes to write
  */
-static int do_write(struct usb_msc_test *msc)
+static int do_write(struct usb_msc_test *msc, unsigned bytes)
 {
 	int			done = 0;
-	int			ret;
+	int			ret = -EINVAL;
 
 	char			*buf = msc->txbuf;
 
-	while (done < msc->size) {
-		unsigned	size = msc->size - done;
+	while (done < bytes) {
+		unsigned	size = bytes - done;
 
 		if (size > msc->pempty) {
 			DBG("%s: size too big\n", __func__);
@@ -197,7 +264,7 @@ static int do_write(struct usb_msc_test *msc)
 		gettimeofday(&start, NULL);
 		ret = write(msc->fd, buf + done, size);
 		if (ret < 0) {
-			perror("do_write");
+			DBG("%s: write failed\n", __func__);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
@@ -220,12 +287,6 @@ static int do_write(struct usb_msc_test *msc)
 		}
 	}
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
-		DBG("%s: couldn't seek current offset\n", __func__);
-		goto err;
-	}
-
 	msc->offset = ret;
 
 	return 0;
@@ -237,30 +298,29 @@ err:
 /**
  * do_read - Read from fd to rxbuf
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of data to read
  */
-static int do_read(struct usb_msc_test *msc)
+static int do_read(struct usb_msc_test *msc, unsigned bytes)
 {
-	unsigned		size = msc->size;
 	int			done = 0;
 	int			ret;
 
-	off_t			previous = msc->offset - msc->size;
-
 	char			*buf = msc->rxbuf;
 
-	ret = lseek(msc->fd, previous, SEEK_SET);
-	if (ret < 0) {
-		DBG("%s: could not seek previous block\n", __func__);
-		goto err;
-	}
-
-	while (done < size) {
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
-		ret = read(msc->fd, buf + done, size - done);
+		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
+			DBG("%s: read failed\n", __func__);
 			perror("do_read");
 			goto err;
 		}
+
+		if (ret == 0) {
+			DBG("%s: read returned 0 bytes\n", __func__);
+			goto err;
+		}
+
 		gettimeofday(&end, NULL);
 
 		done += ret;
@@ -277,15 +337,15 @@ err:
 /**
  * do_verify - Verify consistency of data
  * @msc:	Mass Storage Test Context
+ * @bytes:	Amount of data to verify
  */
-static int do_verify(struct usb_msc_test *msc)
+static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 {
-	unsigned		size = msc->size;
 	int			i;
 
-	for (i = 0; i < size; i++)
+	for (i = 0; i < bytes; i++)
 		if (msc->txbuf[i] != msc->rxbuf[i]) {
-			printf("%s: byte %d failed [%02x %02x]\n", __func__,
+			DBG("%s: byte %d failed [%02x %02x]\n", __func__,
 					i, msc->txbuf[i], msc->rxbuf[i]);
 			return -EINVAL;
 		}
@@ -294,24 +354,46 @@ static int do_verify(struct usb_msc_test *msc)
 }
 
 /**
- * do_test - Write, Read and Verify
+ * do_writev - SG Write txbuf to fd
  * @msc:	Mass Storage Test Context
+ * @iov:	iovec structure pointer
+ * @count:	how many transfers
  */
-static int do_test(struct usb_msc_test *msc)
+static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
+		unsigned count)
 {
 	int			ret;
 
-	ret = do_write(msc);
-	if (ret < 0)
+	gettimeofday(&start, NULL);
+	ret = writev(msc->fd, iov, count);
+	if (ret < 0) {
+		DBG("%s: writev failed\n", __func__);
 		goto err;
+	}
+	gettimeofday(&end, NULL);
 
-	ret = do_read(msc);
-	if (ret < 0)
-		goto err;
+	msc->write_tput = throughput(&start, &end, ret);
 
-	ret = do_verify(msc);
-	if (ret < 0)
+	msc->pempty -= ret;
+
+	if (msc->pempty == 0) {
+		DBG("%s: restarting\n", __func__);
+		msc->pempty = msc->psize;
+		ret = lseek(msc->fd, 0, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: couldn't seek the start\n", __func__);
+			goto err;
+		}
+
+	}
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: couldn't seek current offset\n", __func__);
 		goto err;
+	}
+
+	msc->offset = ret;
 
 	return 0;
 
@@ -319,13 +401,1215 @@ err:
 	return ret;
 }
 
+/**
+ * do_read - SG Read from fd to rxbuf
+ * @msc:	Mass Storage Test Context
+ * @iov:	iovec structure pointer
+ * @count:	how many transfers
+ */
+static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
+		unsigned bytes)
+{
+	int			done = 0;
+	int			ret;
+
+	gettimeofday(&start, NULL);
+	ret = readv(msc->fd, iov, bytes);
+	if (ret < 0) {
+		DBG("%s: readv failed\n", __func__);
+		goto err;
+	}
+	gettimeofday(&end, NULL);
+
+	done += ret;
+	msc->transferred += ret;
+	msc->read_tput = throughput(&start, &end, ret);
+
+	return 0;
+
+err:
+	return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/**
+ * do_test_write_diff_buf - read with different buffer types
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_write_diff_buf(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	unsigned		type = msc->type;
+
+	switch (type) {
+	case MSC_BUFFER_HEAP:
+		msc->txbuf = txbuf_heap;
+		break;
+	case MSC_BUFFER_STACK:
+		msc->txbuf = txbuf_stack;
+		break;
+	default:
+		printf("%s: Unsupported type\n", __func__);
+		break;
+	}
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_WRITE_DIFF_BUF);
+	}
+
+	/* reset to default */
+	msc->txbuf = txbuf_heap;
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_read_diff_buf - read with different buffer types
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_read_diff_buf(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	unsigned		type = msc->type;
+
+	switch (type) {
+	case MSC_BUFFER_HEAP:
+		msc->rxbuf = rxbuf_heap;
+		break;
+	case MSC_BUFFER_STACK:
+		msc->rxbuf = rxbuf_stack;
+		break;
+	default:
+		printf("%s: Unsupported type\n", __func__);
+		break;
+	}
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_read(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_READ_DIFF_BUF);
+	}
+
+	/* reset to default */
+	msc->rxbuf = rxbuf_heap;
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_random_both - write and read several of random size
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_random_both(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		sect_size = msc->sect_size;
+	unsigned		len = msc->size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_RANDOM_BOTH);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_random_write - write several of random size, read 1 64k
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_random_write(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		sect_size = msc->sect_size;
+	unsigned		len = msc->size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= txbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_random_read - write 1 64k sg and read in several of random size
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_random_read(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		sect_size = msc->sect_size;
+	unsigned		len = msc->size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= 8 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 8 * sect_size,
+			.iov_len	= 1 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 9 * sect_size,
+			.iov_len	= 3 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 12 * sect_size,
+			.iov_len	= 32 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 44 * sect_size,
+			.iov_len	= 20 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 64 * sect_size,
+			.iov_len	= 14 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 78 * sect_size,
+			.iov_len	= 16 * sect_size,
+		},
+		{
+			.iov_base	= rxbuf + 94 * sect_size,
+			.iov_len	= 34 * sect_size,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 8);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_RANDOM_READ);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_write_past_last - attempt to write past last sector
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_write_past_last(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		/* seek to one sector less then needed */
+		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+				SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = do_write(msc, msc->size);
+		if (ret >=  0) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_lseek_past_last - attempt to read starting past the last sector
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_lseek_past_last(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = lseek(msc->fd, msc->psize + msc->sect_size,
+				SEEK_SET);
+		if (ret == 0) {
+			DBG("%s: lseek passed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_read_past_last - attempt to read past last sector
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_read_past_last(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		/* seek to one sector less then needed */
+		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+				SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = do_read(msc, msc->size);
+		if (ret > 0) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		report_progress(msc, MSC_TEST_READ_PAST_LAST);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_128sect - SG write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_128sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 128 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_128SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_64sect - SG write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_64sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 64 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_64SECT);
+	}
+
+	printf("success\n");
+
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_32sect - SG write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_32sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 32 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_32SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_8sect - SG write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_8sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 8 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_8SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_sg_2sect - SG write/read/verify 2 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_sg_2sect(struct usb_msc_test *msc)
+{
+	char			*txbuf = msc->txbuf;
+	char			*rxbuf = msc->rxbuf;
+
+	unsigned		len = 2 * msc->sect_size;
+
+	int			ret = 0;
+	int			i;
+
+	const struct iovec	tiov[] = {
+		{
+			.iov_base	= txbuf,
+			.iov_len	= len,
+		},
+	};
+
+	const struct iovec	riov[] = {
+		{
+			.iov_base	= rxbuf,
+			.iov_len	= len,
+		},
+	};
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0) {
+		DBG("%s: lseek failed\n", __func__);
+		goto err;
+	}
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_writev(msc, tiov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (ret < 0) {
+			DBG("%s: lseek failed\n", __func__);
+			goto err;
+		}
+
+		ret = do_readv(msc, riov, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, len);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SG_2SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_64sect - write/read/verify 64 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_64sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0)
+		goto err;
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, 64 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = lseek(msc->fd, msc->offset - 64 * msc->sect_size,
+				SEEK_SET);
+		if (ret < 0)
+			goto err;
+
+		msc->offset = ret;
+
+		ret = do_read(msc, 64 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, 64 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_64SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_32sect - write/read/verify 32 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_32sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0)
+		goto err;
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = lseek(msc->fd, msc->offset - 32 * msc->sect_size,
+				SEEK_SET);
+		if (ret < 0)
+			goto err;
+
+		msc->offset = ret;
+
+		ret = do_read(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, 32 * msc->sect_size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_32SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_8sect - write/read/verify 8 sectors at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_8sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0)
+		goto err;
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, 8 * msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - 8 * msc->sect_size,
+				SEEK_SET);
+		if (ret < 0)
+			goto err;
+
+		msc->offset = ret;
+
+		ret = do_read(msc, 8 * msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, 8 * msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_8SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_1sect - write/read/verify one sector at a time
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_1sect(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0)
+		goto err;
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - 1 * msc->sect_size,
+				SEEK_SET);
+		if (ret < 0)
+			goto err;
+
+		msc->offset = ret;
+
+		ret = do_read(msc, msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, msc->sect_size);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_1SECT);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/**
+ * do_test_simple - write/read/verify @size bytes
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_simple(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	ret = lseek(msc->fd, 0, SEEK_CUR);
+	if (ret < 0)
+		goto err;
+
+	msc->offset = ret;
+
+	for (i = 0; i < msc->count; i++) {
+		ret = do_write(msc, msc->size);
+		if (ret < 0)
+			goto err;
+
+		ret = lseek(msc->fd, msc->offset - msc->size, SEEK_SET);
+		if (ret < 0)
+			goto err;
+
+		msc->offset = ret;
+
+		ret = do_read(msc, msc->size);
+		if (ret < 0)
+			goto err;
+
+		ret = do_verify(msc, msc->size);
+		if (ret < 0)
+			goto err;
+
+		report_progress(msc, MSC_TEST_SIMPLE);
+	}
+
+	printf("success\n");
+
+	return 0;
+
+err:
+	printf("failed\n");
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/**
+ * do_test - Write, Read and Verify
+ * @msc:	Mass Storage Test Context
+ * @test:	test number
+ */
+static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
+{
+	int			ret = 0;
+
+	switch (test) {
+	case MSC_TEST_SIMPLE:
+		ret = do_test_simple(msc);
+		break;
+	case MSC_TEST_1SECT:
+		ret = do_test_1sect(msc);
+		break;
+	case MSC_TEST_8SECT:
+		ret = do_test_8sect(msc);
+		break;
+	case MSC_TEST_32SECT:
+		ret = do_test_32sect(msc);
+		break;
+	case MSC_TEST_64SECT:
+		ret = do_test_64sect(msc);
+		break;
+	case MSC_TEST_SG_2SECT:
+		ret = do_test_sg_2sect(msc);
+		break;
+	case MSC_TEST_SG_8SECT:
+		ret = do_test_sg_8sect(msc);
+		break;
+	case MSC_TEST_SG_32SECT:
+		ret = do_test_sg_32sect(msc);
+		break;
+	case MSC_TEST_SG_64SECT:
+		ret = do_test_sg_64sect(msc);
+		break;
+	case MSC_TEST_SG_128SECT:
+		ret = do_test_sg_128sect(msc);
+		break;
+	case MSC_TEST_READ_PAST_LAST:
+		ret = do_test_read_past_last(msc);
+		break;
+	case MSC_TEST_LSEEK_PAST_LAST:
+		ret = do_test_lseek_past_last(msc);
+		break;
+	case MSC_TEST_WRITE_PAST_LAST:
+		ret = do_test_write_past_last(msc);
+		break;
+	case MSC_TEST_SG_RANDOM_READ:
+		ret = do_test_sg_random_read(msc);
+		break;
+	case MSC_TEST_SG_RANDOM_WRITE:
+		ret = do_test_sg_random_write(msc);
+		break;
+	case MSC_TEST_SG_RANDOM_BOTH:
+		ret = do_test_sg_random_both(msc);
+		break;
+	case MSC_TEST_READ_DIFF_BUF:
+		ret = do_test_read_diff_buf(msc);
+		break;
+	case MSC_TEST_WRITE_DIFF_BUF:
+		ret = do_test_write_diff_buf(msc);
+		break;
+	default:
+		printf("%s: test %d is not supported\n",
+				__func__, test);
+		ret = -ENOTSUP;
+	}
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void usage(char *prog)
 {
 	printf("Usage: %s\n\
-			--output, -o	Block device to write to\n\
-			--size, -s	Size of the internal buffers\n\
-			--debug, -d	Enables debugging messages\n\
-			--help, -h	This help\n", prog);
+			--output, -o		Block device to write to\n\
+			--test, -t		Test number [0 - 21]\n\
+			--size, -s		Size of the internal buffers\n\
+			--count, -c		Iteration count\n\
+			--buffer-type, -b	Buffer type (stack | heap)\n\
+			--debug, -d		Enables debugging messages\n\
+			--help, -h		This help\n", prog);
 }
 
 static struct option msc_opts[] = {
@@ -335,9 +1619,24 @@ static struct option msc_opts[] = {
 		.val		= 'o',
 	},
 	{
+		.name		= "test",	/* test number */
+		.has_arg	= 1,
+		.val		= 't',
+	},
+	{
 		.name		= "size",	/* rx/tx buffer sizes */
 		.has_arg	= 1,
 		.val		= 's',
+	},
+	{
+		.name		= "count",	/* how many iterations */
+		.has_arg	= 1,
+		.val		= 'c',
+	},
+	{
+		.name		= "buffer-type",	/* buffer type */
+		.has_arg	= 1,
+		.val		= 'b',
 	},
 	{
 		.name		= "debug",
@@ -355,8 +1654,13 @@ int main(int argc, char *argv[])
 	struct usb_msc_test	*msc;
 
 	uint64_t		blksize;
+	unsigned		sect_size;
 	unsigned		size = 0;
+	unsigned		count = 100; /* 100 loops by default */
+	unsigned		type = MSC_BUFFER_HEAP;
 	int			ret = 0;
+
+	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
 
@@ -364,13 +1668,21 @@ int main(int argc, char *argv[])
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:s:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:b:dh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
 		case 'o':
 			output = optarg;
+			break;
+
+		case 't':
+			test = atoi(optarg);
+			if (test < 0) {
+				DBG("%s: invalid parameter\n", __func__);
+				goto err0;
+			}
 			break;
 
 		case 's':
@@ -385,6 +1697,25 @@ int main(int argc, char *argv[])
 			if (size % getpagesize()) {
 				DBG("%s: unaligned size\n", __func__);
 				ret = -EINVAL;
+				goto err0;
+			}
+			break;
+
+		case 'c':
+			count = atoi(optarg);
+			if (count <= 0) {
+				DBG("%s: invalid parameter\n", __func__);
+				goto err0;
+			}
+			break;
+
+		case 'b':
+			if (!strncmp(optarg, "heap", 4)) {
+				type = MSC_BUFFER_HEAP;
+			} else if (!strncmp(optarg, "stack", 5)) {
+				type = MSC_BUFFER_STACK;
+			} else {
+				DBG("%s: unsuported buffer type\n", __func__);
 				goto err0;
 			}
 			break;
@@ -417,7 +1748,9 @@ int main(int argc, char *argv[])
 
 	DBG("%s: buffer size %d\n", __func__, size);
 
+	msc->count = count;
 	msc->size = size;
+	msc->output = output;
 
 	ret = alloc_and_init_buffer(msc);
 	if (ret < 0) {
@@ -439,8 +1772,16 @@ int main(int argc, char *argv[])
 		goto err3;
 	}
 
+	ret = ioctl(msc->fd, BLKSSZGET, &sect_size);
+	if (ret < 0 || sect_size == 0) {
+		DBG("%s: could not get sector size\n", __func__);
+		goto err3;
+	}
+
 	msc->psize = blksize;
 	msc->pempty = blksize;
+	msc->sect_size = sect_size;
+	msc->type = type;
 
 	DBG("%s: file descriptor %d size %.2f MB\n", __func__, msc->fd,
 			(float) msc->psize / 1024 / 1024);
@@ -450,36 +1791,16 @@ int main(int argc, char *argv[])
 	 */
 	sync();
 
-	while (1) {
-		float		transferred = 0;
-		int		i;
-		char		*unit = NULL;
-
-		ret = do_test(msc);
-		if (ret < 0) {
-			DBG("%s: test failed\n", __func__);
-			goto err3;
-		}
-
-		transferred = (float) msc->transferred;
-
-		for (i = 0; i < ARRAY_SIZE(units); i++) {
-			if (transferred > 1024.0) {
-				transferred /= 1024.0;
-				continue;
-			}
-			unit = units[i];
-			break;
-		}
-
-		printf("[ using %s written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-				output, transferred, unit, transferred > 1 ? "s" : "",
-				msc->read_tput, msc->write_tput);
-
-		fflush(stdout);
+	ret = do_test(msc, test);
+	if (ret < 0) {
+		DBG("%s: test failed\n", __func__);
+		goto err3;
 	}
 
+	printf("\n");
+
 	close(msc->fd);
+	free(msc->txbuf);
 	free(msc->rxbuf);
 	free(msc);
 
