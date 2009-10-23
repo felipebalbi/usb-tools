@@ -1,0 +1,43 @@
+#
+# Normal rules
+#
+.*
+*.o
+*.o.*
+*.a
+*.s
+*.gz
+*.patch
+*.diff
+msc
+seriald
+serialc
+
+#
+# Top-level generic files
+#
+tags
+TAGS
+!.gitignore
+!.mailmap
+
+# stgit generated dirs
+patches-*
+
+# quilt's files
+patches
+series
+
+# cscope files
+cscope.*
+ncscope.*
+
+# gnu global files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+
+*.orig
+*~
+\#*#
