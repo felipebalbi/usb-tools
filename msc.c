@@ -1786,7 +1786,7 @@ int main(int argc, char *argv[])
 	DBG("%s: file descriptor %d size %.2f MB\n", __func__, msc->fd,
 			(float) msc->psize / 1024 / 1024);
 
-	/* sync before starting any test in order to getter more
+	/* sync before starting any test in order to get more
 	 * reliable results out of the tests
 	 */
 	sync();
