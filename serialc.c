@@ -270,7 +270,7 @@ static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 				serial->rxbuf + done, bytes - done,
 				&transferred, TIMEOUT);
 		if (ret < 0) {
-			DBG("%s: failed to receive data\n", __func__);
+			DBG("%s: failed receiving %d/%d bytes\n", __func__, done, bytes);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
@@ -482,11 +482,13 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-				vid, pid, transferred, unit, transferred > 1 ? "s" : "",
-				serial->read_tput, serial->write_tput);
+		if (debug == 0) {
+			printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+					vid, pid, transferred, unit, transferred > 1 ? "s" : "",
+					serial->read_tput, serial->write_tput);
 
-		fflush(stdout);
+			fflush(stdout);
+		}
 	}
 
 	release_interface(serial);
