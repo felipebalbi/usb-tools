@@ -312,7 +312,6 @@ static int do_verify(struct usb_serial_test *serial, uint16_t bytes)
 static int do_test(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			ret;
-	unsigned		n;
 
 	ret = do_write(serial, bytes);
 	if (ret < 0)
