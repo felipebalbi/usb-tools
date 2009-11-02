@@ -139,6 +139,8 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 
 	char			*buf = serial->buf;
 
+	DBG("%s: writting %d bytes\n", __func__, bytes);
+
 	while (done < bytes) {
 		ret = write(serial->fd, buf + done, bytes - done);
 		if (ret < 0) {
@@ -181,6 +183,8 @@ static int do_read(struct usb_serial_test *serial)
 		done += ret;
 		serial->amount_read += ret;
 	}
+
+	DBG("%s: read %d bytes\n", __func__, done);
 
 	return done;
 
