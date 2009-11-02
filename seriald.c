@@ -369,12 +369,6 @@ int main(int argc, char *argv[])
 			DBG("%s test failed\n", __func__);
 			goto err5;
 		}
-
-		printf("[ using %s read %10.02f MB wrote %10.02f MB ]\r", tty,
-				(float) serial->amount_read / 1024 / 1024,
-				(float) serial->amount_write / 1024 / 1024);
-
-		fflush(stdout);
 	}
 
 	free(serial->pfd);
