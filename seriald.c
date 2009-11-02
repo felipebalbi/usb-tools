@@ -176,7 +176,7 @@ static int do_read(struct usb_serial_test *serial)
 			goto err;
 		}
 
-		size = (buf[0] << 8) || buf[1];
+		size = (buf[0] << 8) | buf[1];
 
 		done += ret;
 		serial->amount_read += ret;
