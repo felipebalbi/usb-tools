@@ -64,7 +64,7 @@ static struct timeval		end;
  * @txbuf:		tx buffer
  * @rxbuf:		rx buffer
  */
-struct usb_serial_test { 
+struct usb_serial_test {
 	libusb_device_handle	*udevh;
 	uint64_t		transferred;
 
