@@ -41,7 +41,7 @@ while true; do
 	-o output
 	-c count
 	-h this help"
-			shift;;
+			exit 1;;
 		--)
 			break;;
 		*)
