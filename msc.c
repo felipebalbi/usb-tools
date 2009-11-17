@@ -31,6 +31,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <malloc.h>
+#include <time.h>
 
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -57,6 +58,9 @@ static char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
 #define DBG(fmt, args...)				\
 	if (debug)					\
 		printf(fmt, ## args)
+
+
+#define ERR(fmt, args...) fprintf(stderr, fmt, ## args)
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
@@ -1660,6 +1664,7 @@ int main(int argc, char *argv[])
 	unsigned		type = MSC_BUFFER_HEAP;
 	int			ret = 0;
 
+	time_t 			t;
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
@@ -1695,7 +1700,7 @@ int main(int argc, char *argv[])
 			}
 
 			if (size % getpagesize()) {
-				DBG("%s: unaligned size\n", __func__);
+				DBG("%s: unaligned size (pagesize=%d)\n", __func__, getpagesize());
 				ret = -EINVAL;
 				goto err0;
 			}
@@ -1783,8 +1788,8 @@ int main(int argc, char *argv[])
 	msc->sect_size = sect_size;
 	msc->type = type;
 
-	DBG("%s: file descriptor %d size %.2f MB\n", __func__, msc->fd,
-			(float) msc->psize / 1024 / 1024);
+	DBG("%s: file descriptor %d size %.2f MB, blksize= %lld , sect_size= %d, type\n", __func__, msc->fd,
+			(float) msc->psize / 1024 / 1024, msc->psize, msc->sect_size);
 
 	/* sync before starting any test in order to get more
 	 * reliable results out of the tests
@@ -1792,8 +1797,11 @@ int main(int argc, char *argv[])
 	sync();
 
 	ret = do_test(msc, test);
+
 	if (ret < 0) {
+		t = time(NULL);
 		DBG("%s: test failed\n", __func__);
+		ERR(" %d : test failed @ test = %d, ret = %d\n", (int) t, test, ret);
 		goto err3;
 	}
 
