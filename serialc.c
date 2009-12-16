@@ -461,7 +461,9 @@ int main(int argc, char *argv[])
 		unsigned	n;
 		char		*unit = NULL;
 
-		n = random() % (serial->size + 1);
+		/* We want packet size to be in range [2 , serial->size],
+		*  as first two bytes are holding the packet size */
+		n = random() % (serial->size - 1) + 2;
 
 		DBG("%s sending %d bytes\n", __func__, n);
 
