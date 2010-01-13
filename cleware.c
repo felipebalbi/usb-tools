@@ -46,34 +46,34 @@ static int find_and_claim_interface(libusb_device_handle *udevh)
 		ret = libusb_detach_kernel_driver(udevh, 0);
 		if (ret < 0) {
 			DBG("%s: couldn't detach kernel driver\n", __func__);
-			goto err1;
+			goto out0;
 		}
 	}
 
 	ret = libusb_set_configuration(udevh, 1);
 	if (ret < 0) {
 		DBG("%s: couldn't set configuration 1\n", __func__);
-		goto err1;
+		goto out0;
 	}
 
 	ret = libusb_claim_interface(udevh, 0);
 	if (ret < 0) {
 		DBG("%s: couldn't claim interface 0\n", __func__);
-		goto err1;
+		goto out0;
 	}
 
 	ret = libusb_set_interface_alt_setting(udevh, 0, 0);
 	if (ret < 0) {
 		DBG("%s: couldn't set alternate setting 0\n", __func__);
-		goto err2;
+		goto out1;
 	}
 
 	return 0;
 
-err2:
+out1:
 	libusb_release_interface(udevh, 0);
 
-err1:
+out0:
 	return ret;
 }
 
