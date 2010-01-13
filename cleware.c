@@ -96,7 +96,7 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 
 		data[0] = 0x00;
@@ -107,7 +107,7 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 
 		data[0] = 0x00;
@@ -118,7 +118,7 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 	} else {
 		data[0] = 0x00;
@@ -129,7 +129,7 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 
 		data[0] = 0x00;
@@ -140,7 +140,7 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 
 		data[0] = 0x00;
@@ -151,13 +151,11 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: couldn't turn on device\n", __func__);
-			goto err1;
+			goto out;
 		}
 	}
 
-	return 0;
-
-err1:
+out:
 	return ret;
 }
 
