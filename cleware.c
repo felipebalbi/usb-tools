@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 	ret = cleware_switch(udevh, atoi(argv[1]));
 	if (ret < 0) {
 		DBG("%s: couldn't switch power %s\n", __func__,
-				argv[1] ? "on" : "off");
+				atoi(argv[1]) ? "on" : "off");
 		goto out3;
 	}
 
