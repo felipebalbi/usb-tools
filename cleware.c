@@ -29,7 +29,7 @@
 #define CLEWARE_VENDOR_ID	0x0d50
 #define CLEWARE_PRODUCT_ID	0x0008
 
-static int debug = 1;
+static int debug;
 
 #define DBG(fmt, args...)			\
 	if (debug)				\
