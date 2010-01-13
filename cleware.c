@@ -87,6 +87,14 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 	int			ret;
 	unsigned char		data[3];
 
+	/*
+	 * the following sequence was sniffed from the example
+	 * application provided by the manufacturer.
+	 *
+	 * it's known to work with the following device:
+	 * http://www.cleware.de/produkte/p-usbswitch-E.html
+	 */
+
 	if (on) {
 		data[0] = 0x00;
 		data[1] = 0x10;
