@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
 
 	ret = find_and_claim_interface(udevh);
 	if (ret < 0) {
-		DBG(":s: couldn't claim interface\n");
+		DBG("%s: couldn't claim interface\n", __func__);
 		goto out2;
 	}
 
