@@ -294,6 +294,11 @@ out:
 	return ret;
 }
 
+static void usage(char *name)
+{
+	fprintf(stdout, "usage: %s [0 | 1] [serial number]\n", name);
+}
+
 int main(int argc, char *argv[])
 {
 	libusb_context		*context;
@@ -308,6 +313,7 @@ int main(int argc, char *argv[])
 	char			*serial = NULL;
 
 	if (argc < 2) {
+		usage(argv[0]);
 		ret = -EINVAL;
 		goto out0;
 	}
