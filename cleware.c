@@ -29,6 +29,13 @@
 #include <getopt.h>
 #include <libusb-1.0/libusb.h>
 
+/*
+ * this application is known to work with the following
+ * device:
+ *
+ * http://www.cleware.de/produkte/p-usbswitch-E.html
+ */
+
 #define CLEWARE_VENDOR_ID	0x0d50
 #define CLEWARE_USB_SWITCH	0x0008
 
@@ -317,16 +324,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	unsigned char		data[3];
 
-	/*
-	 * the following sequence was sniffed from the example
-	 * application provided by the manufacturer.
-	 *
-	 * it's known to work with the following device:
-	 * http://www.cleware.de/produkte/p-usbswitch-E.html
-	 */
-
 	data[0] = 0x00;
-
 	data[1] = port + 0x10;
 	data[2] = on & 0x01;
 
