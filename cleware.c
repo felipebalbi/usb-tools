@@ -275,7 +275,7 @@ static void release_interface(libusb_device_handle *udevh)
 	libusb_release_interface(udevh, 0);
 }
 
-static int cleware_switch(libusb_device_handle *udevh, unsigned on)
+static int set_switch(libusb_device_handle *udevh, unsigned on)
 {
 	int			ret;
 	unsigned char		data[3];
@@ -460,7 +460,7 @@ int main(int argc, char *argv[])
 		goto out2;
 	}
 
-	ret = cleware_switch(udevh, on);
+	ret = set_switch(udevh, on);
 	if (ret < 0) {
 		DBG("%s: couldn't switch power %s\n", __func__,
 				atoi(argv[1]) ? "on" : "off");
