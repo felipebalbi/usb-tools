@@ -301,7 +301,7 @@ static void release_interface(libusb_device_handle *udevh)
 	libusb_release_interface(udevh, 0);
 }
 
-static int set_switch(libusb_device_handle *udevh, unsigned on)
+static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	int			ret;
 	unsigned char		data[3];
@@ -316,7 +316,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 
 	data[0] = 0x00;
 
-	data[1] = SWITCH0;
+	data[1] = port + 0x10;
 	data[2] = on & 0x01;
 
 	ret = libusb_control_transfer(udevh,
@@ -356,6 +356,7 @@ static void usage(char *name)
 			-0, --on		Switch it on\n\
 			-1, --off		Switch it off\n\
 			-s, --serial-number	Device's serial number\n\
+			-p, --port		0-based port number\n\
 			-d, --debug		Enable debugging\n\
 			-h, --help		Print this\n", name);
 }
@@ -371,6 +372,7 @@ static struct option cleware_opts[] = {
 	OPTION("on",		0,	'0'),
 	OPTION("off",		0,	'1'),
 	OPTION("serial-number",	1,	's'),
+	OPTION("port",		1,	'p'),
 	OPTION("list",		0,	'l'),
 	OPTION("debug",		0,	'd'),
 	OPTION("help",		0,	'h'),
@@ -383,6 +385,7 @@ int main(int argc, char *argv[])
 	libusb_device_handle	*udevh;
 	libusb_device		**list;
 
+	unsigned		port = 0;
 	unsigned		iSerial = 0;
 	unsigned		list_devs = 0;
 
@@ -397,7 +400,7 @@ int main(int argc, char *argv[])
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "l01s:dh", cleware_opts, &optidx);
+		opt = getopt_long(argc, argv, "l01p:s:dh", cleware_opts, &optidx);
 		if (opt < 0)
 			break;
 
@@ -410,6 +413,9 @@ int main(int argc, char *argv[])
 			break;
 		case '1':
 			on = 1;
+			break;
+		case 'p':
+			port = atoi(optarg);
 			break;
 		case 's':
 			iSerial = strtoul(optarg, &serial, 16);
@@ -454,7 +460,7 @@ int main(int argc, char *argv[])
 		goto out2;
 	}
 
-	ret = set_switch(udevh, on);
+	ret = set_switch(udevh, port, on);
 	if (ret < 0) {
 		DBG("%s: couldn't switch power %s\n", __func__,
 				atoi(argv[1]) ? "on" : "off");
