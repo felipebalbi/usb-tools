@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
+#include <getopt.h>
 #include <libusb-1.0/libusb.h>
 
 #define CLEWARE_VENDOR_ID	0x0d50
@@ -297,8 +298,29 @@ out:
 
 static void usage(char *name)
 {
-	fprintf(stdout, "usage: %s [0 | 1] [serial number]\n", name);
+	fprintf(stdout, "usage: %s [-0 | -1] [-s SerialNumber] [-d] [-h]\n\
+			-0, --on		Switch it on\n\
+			-1, --off		Switch it off\n\
+			-s, --serial-number	Device's serial number\n\
+			-d, --debug		Enable debugging\n\
+			-h, --help		Print this\n", name);
 }
+
+#define OPTION(n, h, v)		\
+{				\
+	.name		= #n,	\
+	.has_arg	= h,	\
+	.val		= v,	\
+}
+
+static struct option cleware_opts[] = {
+	OPTION("on",		0,	'0'),
+	OPTION("off",		0,	'1'),
+	OPTION("serial-number",	1,	's'),
+	OPTION("debug",		0,	'd'),
+	OPTION("help",		0,	'h'),
+	{  }	/* Terminating entry */
+};
 
 int main(int argc, char *argv[])
 {
@@ -311,16 +333,37 @@ int main(int argc, char *argv[])
 	ssize_t			count;
 
 	int			ret = 0;
+	int			on = 0;
+
 	char			*serial = NULL;
 
-	if (argc < 2) {
-		usage(argv[0]);
-		ret = -EINVAL;
-		goto out0;
-	}
+	while (ARRAY_SIZE(cleware_opts)) {
+		int		optidx = 0;
+		int		opt;
 
-	if (argc == 3)
-		iSerial = strtoul(argv[2], &serial, 16);
+		opt = getopt_long(argc, argv, "01s:dh", cleware_opts, &optidx);
+		if (opt < 0)
+			break;
+
+		switch (opt) {
+		case '0':
+			on = 0;
+			break;
+		case '1':
+			on = 1;
+			break;
+		case 's':
+			iSerial = strtoul(optarg, &serial, 16);
+			break;
+		case 'd':
+			debug = 1;
+			break;
+		case 'h': /* FALLTHROUGH */
+		default:
+			usage(argv[0]);
+			return 0;
+		}
+	}
 
 	/* initialize libusb */
 	libusb_init(&context);
@@ -346,7 +389,7 @@ int main(int argc, char *argv[])
 		goto out2;
 	}
 
-	ret = cleware_switch(udevh, atoi(argv[1]));
+	ret = cleware_switch(udevh, on);
 	if (ret < 0) {
 		DBG("%s: couldn't switch power %s\n", __func__,
 				atoi(argv[1]) ? "on" : "off");
@@ -363,7 +406,6 @@ out2:
 out1:
 	libusb_exit(context);
 
-out0:
 	return ret;
 }
 
