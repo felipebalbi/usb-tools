@@ -137,9 +137,9 @@ static libusb_device_handle *find_and_open_device(libusb_device **list,
 		libusb_device *udev = list[i];
 
 		ret = match_device_id(udev);
-		if (ret < 0) {
+		if (ret <= 0) {
 			DBG("%s: couldn't match device id\n", __func__);
-			break;
+			goto out;
 		}
 
 		if (iSerial) {
@@ -158,10 +158,10 @@ static libusb_device_handle *find_and_open_device(libusb_device **list,
 	ret = libusb_open(found, &udevh);
 	if (ret < 0 || !found) {
 		DBG("%s: couldn't open device\n", __func__);
-		goto out0;
+		goto out;
 	}
 
-out0:
+out:
 	return udevh;
 }
 
