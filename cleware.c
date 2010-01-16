@@ -354,20 +354,21 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 		goto out;
 	}
 
-	ret = set_led(udevh, LED0, on);
-	if (ret < 0) {
-		DBG("%s: couldn't turn %s device\n", __func__,
-				on ? "on" : "off");
-		goto out;
-	}
+	if (port == 0) {
+		ret = set_led(udevh, LED0, on);
+		if (ret < 0) {
+			DBG("%s: couldn't turn %s device\n", __func__,
+					on ? "on" : "off");
+			goto out;
+		}
 
-	ret = set_led(udevh, LED1, !on);
-	if (ret < 0) {
-		DBG("%s: couldn't turn %s device\n", __func__,
-				on ? "on" : "off");
-		goto out;
+		ret = set_led(udevh, LED1, !on);
+		if (ret < 0) {
+			DBG("%s: couldn't turn %s device\n", __func__,
+					on ? "on" : "off");
+			goto out;
+		}
 	}
-
 
 	return 0;
 
