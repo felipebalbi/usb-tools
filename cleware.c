@@ -32,6 +32,32 @@
 #define CLEWARE_VENDOR_ID	0x0d50
 #define CLEWARE_USB_SWITCH	0x0008
 
+enum cleware_leds {
+	LED0 = 0x00,
+	LED1 = 0x01,
+	LED2 = 0x02,
+	LED3 = 0x03,
+};
+
+enum cleware_switches {
+	SWITCH0 = 0x10,
+	SWITCH1 = 0x11,
+	SWITCH2 = 0x12,
+	SWITCH3 = 0x13,
+	SWITCH4 = 0x14,
+	SWITCH5 = 0x15,
+	SWITCH6 = 0x16,
+	SWITCH7 = 0x17,
+	SWITCH8 = 0x18,
+	SWITCH9 = 0x19,
+	SWITCH10 = 0x1a,
+	SWITCH11 = 0x1b,
+	SWITCH12 = 0x1c,
+	SWITCH13 = 0x1d,
+	SWITCH14 = 0x1e,
+	SWITCH15 = 0x1f
+};
+
 struct usb_device_id {
 	unsigned		idVendor;
 	unsigned		idProduct;
@@ -291,7 +317,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 	data[0] = 0x00;
 
 	if (on) {
-		data[1] = 0x10;
+		data[1] = SWITCH0;
 		data[2] = 0x01;
 
 		ret = libusb_control_transfer(udevh,
@@ -301,7 +327,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[1] = 0x00;
+		data[1] = LED0;
 		data[2] = 0x00;
 
 		ret = libusb_control_transfer(udevh,
@@ -311,7 +337,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[1] = 0x01;
+		data[1] = LED1;
 		data[2] = 0x0f;
 
 		ret = libusb_control_transfer(udevh,
@@ -321,7 +347,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 	} else {
-		data[1] = 0x10;
+		data[1] = SWITCH0;
 		data[2] = 0x00;
 
 		ret = libusb_control_transfer(udevh,
@@ -331,7 +357,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[1] = 0x00;
+		data[1] = LED0;
 		data[2] = 0x0f;
 
 		ret = libusb_control_transfer(udevh,
@@ -341,7 +367,7 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[1] = 0x01;
+		data[1] = LED1;
 		data[2] = 0x00;
 
 		ret = libusb_control_transfer(udevh,
