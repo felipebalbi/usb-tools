@@ -29,7 +29,7 @@
 #include <libusb-1.0/libusb.h>
 
 #define CLEWARE_VENDOR_ID	0x0d50
-#define CLEWARE_PRODUCT_ID	0x0008
+#define CLEWARE_USB_SWITCH	0x0008
 
 struct usb_device_id {
 	unsigned		idVendor;
@@ -43,7 +43,7 @@ struct usb_device_id {
 }
 
 static struct usb_device_id cleware_id[] = {
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_PRODUCT_ID),
+	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH),
 };
 
 static int debug;
