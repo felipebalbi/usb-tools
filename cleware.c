@@ -288,8 +288,9 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 	 * http://www.cleware.de/produkte/p-usbswitch-E.html
 	 */
 
+	data[0] = 0x00;
+
 	if (on) {
-		data[0] = 0x00;
 		data[1] = 0x10;
 		data[2] = 0x01;
 
@@ -300,7 +301,6 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[0] = 0x00;
 		data[1] = 0x00;
 		data[2] = 0x00;
 
@@ -311,7 +311,6 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[0] = 0x00;
 		data[1] = 0x01;
 		data[2] = 0x0f;
 
@@ -322,7 +321,6 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 	} else {
-		data[0] = 0x00;
 		data[1] = 0x10;
 		data[2] = 0x00;
 
@@ -333,7 +331,6 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[0] = 0x00;
 		data[1] = 0x00;
 		data[2] = 0x0f;
 
@@ -344,7 +341,6 @@ static int cleware_switch(libusb_device_handle *udevh, unsigned on)
 			goto out;
 		}
 
-		data[0] = 0x00;
 		data[1] = 0x01;
 		data[2] = 0x00;
 
