@@ -309,13 +309,12 @@ static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
 	data[1] = led;
 	data[2] = on ? 0x00 : 0x0f;
 
-	return libusb_control_transfer(udevh,
-			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
+	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+			data, sizeof(data), TIMEOUT);
 }
 
 static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
-	int			ret;
 	unsigned char		data[3];
 
 	/*
@@ -331,16 +330,8 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 	data[1] = port + 0x10;
 	data[2] = on & 0x01;
 
-	ret = libusb_control_transfer(udevh,
-			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-	if (ret < 0) {
-		DBG("%s: couldn't turn %s device\n", __func__,
-				on ? "on" : "off");
-		goto out;
-	}
-
-out:
-	return ret;
+	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+			data, sizeof(data), TIMEOUT);
 }
 
 static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
@@ -349,23 +340,20 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 
 	ret = set_switch(udevh, port, on);
 	if (ret < 0) {
-		DBG("%s: failed to turn %s switch %d\n", __func__,
-				on ? "on" : "off", port);
+		DBG("%s: failed to toggle switch %d\n", __func__, port);
 		goto out;
 	}
 
 	if (port == 0) {
 		ret = set_led(udevh, LED0, on);
 		if (ret < 0) {
-			DBG("%s: couldn't turn %s device\n", __func__,
-					on ? "on" : "off");
+			DBG("%s: couldn't toggle led %d\n", __func__, LED0);
 			goto out;
 		}
 
 		ret = set_led(udevh, LED1, !on);
 		if (ret < 0) {
-			DBG("%s: couldn't turn %s device\n", __func__,
-					on ? "on" : "off");
+			DBG("%s: couldn't toggle led %d\n", __func__, LED1);
 			goto out;
 		}
 	}
