@@ -339,27 +339,24 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 	ret = set_switch(udevh, port, on);
 	if (ret < 0) {
 		DBG("%s: failed to toggle switch %d\n", __func__, port);
-		goto out;
+		return ret;
 	}
 
 	if (port == 0) {
 		ret = set_led(udevh, LED0, on);
 		if (ret < 0) {
 			DBG("%s: couldn't toggle led %d\n", __func__, LED0);
-			goto out;
+			return ret;
 		}
 
 		ret = set_led(udevh, LED1, !on);
 		if (ret < 0) {
 			DBG("%s: couldn't toggle led %d\n", __func__, LED1);
-			goto out;
+			return ret;
 		}
 	}
 
 	return 0;
-
-out:
-	return ret;
 }
 
 static void usage(char *name)
