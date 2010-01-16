@@ -39,13 +39,6 @@
 #define CLEWARE_VENDOR_ID	0x0d50
 #define CLEWARE_USB_SWITCH	0x0008
 
-enum cleware_leds {
-	LED0 = 0x00,
-	LED1 = 0x01,
-	LED2 = 0x02,
-	LED3 = 0x03,
-};
-
 struct usb_device_id {
 	unsigned		idVendor;
 	unsigned		idProduct;
@@ -333,15 +326,15 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 	}
 
 	if (port == 0) {
-		ret = set_led(udevh, LED0, on);
+		ret = set_led(udevh, port, on);
 		if (ret < 0) {
-			DBG("%s: couldn't toggle led %d\n", __func__, LED0);
+			DBG("%s: couldn't toggle led %d\n", __func__, port);
 			return ret;
 		}
 
-		ret = set_led(udevh, LED1, !on);
+		ret = set_led(udevh, port + 1, !on);
 		if (ret < 0) {
-			DBG("%s: couldn't toggle led %d\n", __func__, LED1);
+			DBG("%s: couldn't toggle led %d\n", __func__, port + 1);
 			return ret;
 		}
 	}
