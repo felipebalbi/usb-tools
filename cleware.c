@@ -198,8 +198,8 @@ static void print_device_attributes(libusb_device *udev)
 	}
 
 	if (desc.iProduct) {
-		ret = libusb_get_string_descriptor_ascii(tmp, desc.iProduct, product,
-				sizeof(product));
+		ret = libusb_get_string_descriptor_ascii(tmp, desc.iProduct,
+				product, sizeof(product));
 
 		if (ret < 0) {
 			DBG("%s: failed to get product name\n", __func__);
