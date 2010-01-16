@@ -49,18 +49,21 @@ enum cleware_leds {
 struct usb_device_id {
 	unsigned		idVendor;
 	unsigned		idProduct;
+	unsigned		num_ports;
 };
 
-#define USB_DEVICE(v, p)		\
+#define USB_DEVICE(v, p, n)		\
 {					\
 	.idVendor		= v,	\
 	.idProduct		= p,	\
+	.num_ports		= n	\
 }
 
 static struct usb_device_id cleware_id[] = {
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH),
+	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 1),
 };
 
+static int num_ports;
 static int debug;
 
 #define DBG(fmt, args...)			\
@@ -89,6 +92,7 @@ static int match_device_id(libusb_device *udev)
 			DBG("%s: matched device %04x:%04x\n",__func__,
 					desc.idVendor, desc.idProduct);
 			match = 1;
+			num_ports = cleware_id[i].num_ports;
 		}
 	}
 
@@ -316,6 +320,11 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	int			ret;
+
+	if (port++ > num_ports) {
+		DBG("%s: this device doesn't have that many ports\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = set_switch(udevh, port, on);
 	if (ret < 0) {
