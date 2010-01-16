@@ -69,11 +69,12 @@ static int match_device_id(libusb_device *udev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cleware_id); i++) {
-		DBG("%s: idVendor %02x idProduct %02x\n",__func__,
-				desc.idVendor, desc.idProduct);
 		if ((desc.idVendor == cleware_id[i].idVendor) &&
-				(desc.idProduct == cleware_id[i].idProduct))
+				(desc.idProduct == cleware_id[i].idProduct)) {
+			DBG("%s: matched device %04x:%04x\n",__func__,
+					desc.idVendor, desc.idProduct);
 			match = 1;
+		}
 	}
 
 	return match;
