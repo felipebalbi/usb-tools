@@ -12,6 +12,7 @@
 msc
 seriald
 serialc
+cleware
 
 #
 # Top-level generic files
