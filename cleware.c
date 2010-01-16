@@ -133,6 +133,64 @@ out0:
 	return ret;
 }
 
+static void print_device_attributes(libusb_device *udev)
+{
+	struct libusb_device_descriptor	desc;
+
+	libusb_device_handle		*tmp;
+
+	int				ret;
+
+	unsigned char			product[256] = { };
+
+	ret = libusb_get_device_descriptor(udev, &desc);
+	if (ret < 0) {
+		DBG("%s: failed to get device descriptor\n", __func__);
+		return;
+	}
+
+	ret = libusb_open(udev, &tmp);
+	if (ret < 0 || !tmp) {
+		DBG("%s: couldn't open device\n", __func__);
+		return;
+	}
+
+	if (libusb_kernel_driver_active(tmp, 0)) {
+		ret = libusb_detach_kernel_driver(tmp, 0);
+		if (ret < 0) {
+			DBG("%s: couldn't detach kernel driver\n", __func__);
+			libusb_close(tmp);
+			return;
+		}
+	}
+
+	if (desc.iProduct) {
+		ret = libusb_get_string_descriptor_ascii(tmp, desc.iProduct, product,
+				sizeof(product));
+
+		if (ret < 0) {
+			DBG("%s: failed to get product name\n", __func__);
+			libusb_close(tmp);
+			return;
+		}
+	}
+
+	fprintf(stdout, "%04x:%04x\t%s\n", desc.idVendor, desc.idProduct,
+			product);
+}
+
+static void list_devices(libusb_device **list, ssize_t count)
+{
+	int				i;
+
+	for (i = 0; i < count; i++) {
+		libusb_device *udev = list[i];
+
+		if (match_device_id(udev))
+			print_device_attributes(udev);
+	}
+}
+
 static libusb_device_handle *find_and_open_device(libusb_device **list,
 		ssize_t count, unsigned iSerial)
 {
@@ -323,6 +381,7 @@ static struct option cleware_opts[] = {
 	OPTION("on",		0,	'0'),
 	OPTION("off",		0,	'1'),
 	OPTION("serial-number",	1,	's'),
+	OPTION("list",		0,	'l'),
 	OPTION("debug",		0,	'd'),
 	OPTION("help",		0,	'h'),
 	{  }	/* Terminating entry */
@@ -335,6 +394,7 @@ int main(int argc, char *argv[])
 	libusb_device		**list;
 
 	unsigned		iSerial = 0;
+	unsigned		list_devs = 0;
 
 	ssize_t			count;
 
@@ -347,11 +407,14 @@ int main(int argc, char *argv[])
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "01s:dh", cleware_opts, &optidx);
+		opt = getopt_long(argc, argv, "l01s:dh", cleware_opts, &optidx);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
+		case 'l':
+			list_devs = 1;
+			break;
 		case '0':
 			on = 0;
 			break;
@@ -380,6 +443,11 @@ int main(int argc, char *argv[])
 	count = libusb_get_device_list(context, &list);
 	if (count < 0) {
 		DBG("%s: couldn't get device list\n", __func__);
+		goto out1;
+	}
+
+	if (list_devs) {
+		list_devices(list, count);
 		goto out1;
 	}
 
