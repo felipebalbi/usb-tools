@@ -90,6 +90,12 @@ static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
 	unsigned char			serial;
 	int				ret;
 
+	ret = libusb_get_device_descriptor(udev, &desc);
+	if (ret < 0) {
+		DBG("%s: failed to get device descriptor\n", __func__);
+		goto out0;
+	}
+
 	ret = libusb_open(udev, &tmp);
 	if (ret < 0 || !tmp) {
 		DBG("%s: couldn't open device\n", __func__);
