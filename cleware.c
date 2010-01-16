@@ -322,7 +322,8 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 	ret = libusb_control_transfer(udevh,
 			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 	if (ret < 0) {
-		DBG("%s: couldn't turn on device\n", __func__);
+		DBG("%s: couldn't turn %s device\n", __func__,
+				on ? "on" : "off");
 		goto out;
 	}
 
@@ -332,7 +333,8 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 	ret = libusb_control_transfer(udevh,
 			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 	if (ret < 0) {
-		DBG("%s: couldn't turn on device\n", __func__);
+		DBG("%s: couldn't turn %s device\n", __func__,
+				on ? "on" : "off");
 		goto out;
 	}
 
@@ -342,7 +344,8 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 	ret = libusb_control_transfer(udevh,
 			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
 	if (ret < 0) {
-		DBG("%s: couldn't turn on device\n", __func__);
+		DBG("%s: couldn't turn %s device\n", __func__,
+				on ? "on" : "off");
 		goto out;
 	}
 
