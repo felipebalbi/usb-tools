@@ -443,6 +443,7 @@ int main(int argc, char *argv[])
 	count = libusb_get_device_list(context, &list);
 	if (count < 0) {
 		DBG("%s: couldn't get device list\n", __func__);
+		ret = count;
 		goto out1;
 	}
 
