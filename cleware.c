@@ -46,25 +46,6 @@ enum cleware_leds {
 	LED3 = 0x03,
 };
 
-enum cleware_switches {
-	SWITCH0 = 0x10,
-	SWITCH1 = 0x11,
-	SWITCH2 = 0x12,
-	SWITCH3 = 0x13,
-	SWITCH4 = 0x14,
-	SWITCH5 = 0x15,
-	SWITCH6 = 0x16,
-	SWITCH7 = 0x17,
-	SWITCH8 = 0x18,
-	SWITCH9 = 0x19,
-	SWITCH10 = 0x1a,
-	SWITCH11 = 0x1b,
-	SWITCH12 = 0x1c,
-	SWITCH13 = 0x1d,
-	SWITCH14 = 0x1e,
-	SWITCH15 = 0x1f
-};
-
 struct usb_device_id {
 	unsigned		idVendor;
 	unsigned		idProduct;
