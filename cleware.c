@@ -316,66 +316,34 @@ static int set_switch(libusb_device_handle *udevh, unsigned on)
 
 	data[0] = 0x00;
 
-	if (on) {
-		data[1] = SWITCH0;
-		data[2] = 0x01;
+	data[1] = SWITCH0;
+	data[2] = on & 0x01;
 
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
+	ret = libusb_control_transfer(udevh,
+			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
+	if (ret < 0) {
+		DBG("%s: couldn't turn on device\n", __func__);
+		goto out;
+	}
 
-		data[1] = LED0;
-		data[2] = 0x00;
+	data[1] = LED0;
+	data[2] = on ? 0x00 : 0x0f;
 
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
+	ret = libusb_control_transfer(udevh,
+			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
+	if (ret < 0) {
+		DBG("%s: couldn't turn on device\n", __func__);
+		goto out;
+	}
 
-		data[1] = LED1;
-		data[2] = 0x0f;
+	data[1] = LED1;
+	data[2] = on ? 0x0f : 0x00;
 
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
-	} else {
-		data[1] = SWITCH0;
-		data[2] = 0x00;
-
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
-
-		data[1] = LED0;
-		data[2] = 0x0f;
-
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
-
-		data[1] = LED1;
-		data[2] = 0x00;
-
-		ret = libusb_control_transfer(udevh,
-				0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
-		if (ret < 0) {
-			DBG("%s: couldn't turn on device\n", __func__);
-			goto out;
-		}
+	ret = libusb_control_transfer(udevh,
+			0x21, 0x09, 0x200, 0x00, data, sizeof(data), TIMEOUT);
+	if (ret < 0) {
+		DBG("%s: couldn't turn on device\n", __func__);
+		goto out;
 	}
 
 out:
