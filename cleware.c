@@ -314,7 +314,7 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	int			ret;
 
-	if (port++ > num_ports) {
+	if (port + 1 > num_ports) {
 		DBG("%s: this device doesn't have that many ports\n", __func__);
 		return -EINVAL;
 	}
