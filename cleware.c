@@ -488,7 +488,7 @@ int main(int argc, char *argv[])
 	ret = set_power(udevh, port, on);
 	if (ret < 0) {
 		DBG("%s: couldn't switch power %s\n", __func__,
-				atoi(argv[1]) ? "on" : "off");
+				on ? "on" : "off");
 		goto out3;
 	}
 
