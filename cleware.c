@@ -101,7 +101,7 @@ static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
 
 	libusb_device_handle		*tmp;
 
-	unsigned char			serial;
+	unsigned char			serial[256];
 	int				ret;
 
 	ret = libusb_get_device_descriptor(udev, &desc);
@@ -125,14 +125,14 @@ static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
 	}
 
 	ret = libusb_get_string_descriptor(tmp, desc.iSerialNumber,
-			0x0409, &serial, sizeof(serial));
+			0x0409, serial, sizeof(serial));
 
 	if (ret < 0) {
 		DBG("%s: failed to get string descriptor\n", __func__);
 		goto out1;
 	}
 
-	if (serial != iSerial) {
+	if (atoi(serial) != iSerial) {
 		DBG("%s: not the serial number we want\n", __func__);
 		goto out2;
 	}
@@ -240,10 +240,12 @@ static libusb_device_handle *find_and_open_device(libusb_device **list,
 		break;
 	}
 
-	ret = libusb_open(found, &udevh);
-	if (ret < 0 || !found) {
-		DBG("%s: couldn't open device\n", __func__);
-		goto out;
+	if (found) {
+		ret = libusb_open(found, &udevh);
+		if (ret < 0 || !found) {
+			DBG("%s: couldn't open device\n", __func__);
+			goto out;
+		}
 	}
 
 out:
