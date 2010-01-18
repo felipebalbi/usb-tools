@@ -101,6 +101,7 @@ static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
 
 	libusb_device_handle		*tmp;
 
+	unsigned int			serialnumber;
 	unsigned char			serial[256];
 	int				ret;
 
@@ -124,15 +125,23 @@ static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
 		}
 	}
 
-	ret = libusb_get_string_descriptor(tmp, desc.iSerialNumber,
-			0x0409, serial, sizeof(serial));
+	ret = libusb_get_string_descriptor_ascii(tmp, desc.iSerialNumber,
+			serial, sizeof(serial));
 
 	if (ret < 0) {
 		DBG("%s: failed to get string descriptor\n", __func__);
 		goto out1;
 	}
 
-	if (atoi(serial) != iSerial) {
+	ret = strtoul((const char *) &serial, NULL, 16);
+	if (ret < 0) {
+		DBG("%s: failed to get serial number\n", __func__);
+		goto out2;
+	}
+
+	serialnumber = ret;
+
+	if (serialnumber != iSerial) {
 		DBG("%s: not the serial number we want\n", __func__);
 		goto out2;
 	}
