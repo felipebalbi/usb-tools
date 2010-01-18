@@ -405,8 +405,6 @@ int main(int argc, char *argv[])
 	int			ret = 0;
 	int			on = 0;
 
-	char			*serial = NULL;
-
 	while (ARRAY_SIZE(cleware_opts)) {
 		int		optidx = 0;
 		int		opt;
@@ -429,7 +427,7 @@ int main(int argc, char *argv[])
 			port = atoi(optarg);
 			break;
 		case 's':
-			iSerial = strtoul(optarg, &serial, 16);
+			iSerial = strtoul(optarg, NULL, 16);
 			break;
 		case 'd':
 			debug = 1;
