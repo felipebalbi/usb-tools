@@ -79,13 +79,16 @@ static int match_device_id(libusb_device *udev)
 		return ret;
 	}
 
+	DBG("%s: got device desc for %04x:%04x\n", __func__,
+			desc.idVendor, desc.idProduct);
+
 	for (i = 0; i < ARRAY_SIZE(cleware_id); i++) {
 		if ((desc.idVendor == cleware_id[i].idVendor) &&
 				(desc.idProduct == cleware_id[i].idProduct)) {
-			DBG("%s: matched device %04x:%04x\n",__func__,
-					desc.idVendor, desc.idProduct);
 			match = 1;
 			num_ports = cleware_id[i].num_ports;
+			DBG("%s: matched device %04x:%04x num_ports %d\n",__func__,
+					desc.idVendor, desc.idProduct, num_ports);
 		}
 	}
 
@@ -181,6 +184,7 @@ static void print_device_attributes(libusb_device *udev)
 
 		if (ret < 0) {
 			DBG("%s: failed to get product name\n", __func__);
+			libusb_attach_kernel_driver(tmp, 0);
 			libusb_close(tmp);
 			return;
 		}
@@ -188,6 +192,8 @@ static void print_device_attributes(libusb_device *udev)
 
 	fprintf(stdout, "%04x:%04x\t%s\n", desc.idVendor, desc.idProduct,
 			product);
+
+	libusb_attach_kernel_driver(tmp, 0);
 }
 
 static void list_devices(libusb_device **list, ssize_t count)
@@ -210,13 +216,15 @@ static libusb_device_handle *find_and_open_device(libusb_device **list,
 	int				ret;
 	int				i;
 
+	DBG("%s: iterating over %d devices\n", __func__, count);
+
 	for (i = 0; i < count; i++) {
 		libusb_device *udev = list[i];
 
 		ret = match_device_id(udev);
 		if (ret <= 0) {
 			DBG("%s: couldn't match device id\n", __func__);
-			goto out;
+			continue;
 		}
 
 		if (iSerial) {
