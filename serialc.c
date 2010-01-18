@@ -369,9 +369,6 @@ int main(int argc, char *argv[])
 	unsigned		vid = 0xffff;
 	unsigned		pid = 0xffff;
 
-	char			*vendor = NULL;
-	char			*product = NULL;
-
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
 		int		opt;
@@ -382,10 +379,10 @@ int main(int argc, char *argv[])
 
 		switch (opt) {
 		case 'v':
-			vid = strtoul(optarg, &vendor, 16);
+			vid = strtoul(optarg, NULL, 16);
 			break;
 		case 'p':
-			pid = strtoul(optarg, &product, 16);
+			pid = strtoul(optarg, NULL, 16);
 			break;
 		case 's':
 			size = atoi(optarg);
