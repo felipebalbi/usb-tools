@@ -277,12 +277,15 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		msc->pempty -= ret;
 
 		if (msc->pempty == 0) {
+			off_t		pos;
+
 			DBG("%s: restarting\n", __func__);
 			msc->pempty = msc->psize;
 			done = 0;
-			ret = lseek(msc->fd, 0, SEEK_SET);
-			if (ret < 0) {
+			pos = lseek(msc->fd, 0, SEEK_SET);
+			if (pos < 0) {
 				DBG("%s: couldn't seek the start\n", __func__);
+				ret = (int) pos;
 				goto err;
 			}
 
@@ -364,6 +367,7 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned count)
 {
+	off_t			pos;
 	int			ret;
 
 	gettimeofday(&start, NULL);
@@ -381,16 +385,18 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 	if (msc->pempty == 0) {
 		DBG("%s: restarting\n", __func__);
 		msc->pempty = msc->psize;
-		ret = lseek(msc->fd, 0, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, 0, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: couldn't seek the start\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
 	}
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		DBG("%s: couldn't seek current offset\n", __func__);
 		goto err;
 	}
@@ -531,6 +537,8 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -604,9 +612,10 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -617,8 +626,9 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
+			ret = (int) pos;
 			DBG("%s: lseek failed\n", __func__);
 			goto err;
 		}
@@ -656,6 +666,8 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -701,8 +713,9 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		DBG("%s: lseek failed\n", __func__);
 		goto err;
 	}
@@ -714,8 +727,9 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
+			ret = (int) pos;
 			DBG("%s: lseek failed\n", __func__);
 			goto err;
 		}
@@ -752,6 +766,8 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
+
+	off_t			pos;
 
 	int			ret = 0;
 	int			i;
@@ -798,8 +814,9 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		DBG("%s: lseek failed\n", __func__);
 		goto err;
 	}
@@ -811,7 +828,7 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (ret < 0) {
 			DBG("%s: lseek failed\n", __func__);
 			goto err;
@@ -844,16 +861,18 @@ err:
  */
 static int do_test_write_past_last(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
 		/* seek to one sector less then needed */
-		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
-		if (ret < 0) {
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
-			ret = -EINVAL;
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -882,13 +901,15 @@ err:
  */
 static int do_test_lseek_past_last(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
-		ret = lseek(msc->fd, msc->psize + msc->sect_size,
+		pos = lseek(msc->fd, msc->psize + msc->sect_size,
 				SEEK_SET);
-		if (ret == 0) {
+		if (pos >= 0) {
 			DBG("%s: lseek passed\n", __func__);
 			ret = -EINVAL;
 			goto err;
@@ -913,16 +934,18 @@ err:
  */
 static int do_test_read_past_last(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
 		/* seek to one sector less then needed */
-		ret = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
+		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
-		if (ret < 0) {
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
-			ret = -EINVAL;
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -956,6 +979,8 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 
 	unsigned		len = 128 * msc->sect_size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -973,9 +998,10 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -986,9 +1012,10 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -1024,6 +1051,8 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 
 	unsigned		len = 64 * msc->sect_size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -1041,9 +1070,10 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -1054,9 +1084,10 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -1093,6 +1124,8 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 
 	unsigned		len = 32 * msc->sect_size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -1110,9 +1143,10 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -1123,9 +1157,10 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -1161,6 +1196,8 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 
 	unsigned		len = 8 * msc->sect_size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -1178,9 +1215,10 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -1191,9 +1229,10 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -1229,6 +1268,8 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 
 	unsigned		len = 2 * msc->sect_size;
 
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
@@ -1246,9 +1287,10 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		},
 	};
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0) {
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
 		DBG("%s: lseek failed\n", __func__);
+		ret = (int) pos;
 		goto err;
 	}
 
@@ -1259,9 +1301,10 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
+			ret = (int) pos;
 			goto err;
 		}
 
@@ -1292,12 +1335,16 @@ err:
  */
 static int do_test_64sect(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0)
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		goto err;
+	}
 
 	msc->offset = ret;
 
@@ -1306,10 +1353,12 @@ static int do_test_64sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			break;
 
-		ret = lseek(msc->fd, msc->offset - 64 * msc->sect_size,
+		pos = lseek(msc->fd, msc->offset - 64 * msc->sect_size,
 				SEEK_SET);
-		if (ret < 0)
+		if (pos < 0) {
+			ret = (int) pos;
 			goto err;
+		}
 
 		msc->offset = ret;
 
@@ -1340,12 +1389,16 @@ err:
  */
 static int do_test_32sect(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0)
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		goto err;
+	}
 
 	msc->offset = ret;
 
@@ -1354,10 +1407,12 @@ static int do_test_32sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			break;
 
-		ret = lseek(msc->fd, msc->offset - 32 * msc->sect_size,
+		pos = lseek(msc->fd, msc->offset - 32 * msc->sect_size,
 				SEEK_SET);
-		if (ret < 0)
+		if (pos < 0) {
+			ret = (int) pos;
 			goto err;
+		}
 
 		msc->offset = ret;
 
@@ -1388,12 +1443,16 @@ err:
  */
 static int do_test_8sect(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0)
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		goto err;
+	}
 
 	msc->offset = ret;
 
@@ -1402,10 +1461,12 @@ static int do_test_8sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - 8 * msc->sect_size,
+		pos = lseek(msc->fd, msc->offset - 8 * msc->sect_size,
 				SEEK_SET);
-		if (ret < 0)
+		if (pos < 0) {
+			ret = (int) pos;
 			goto err;
+		}
 
 		msc->offset = ret;
 
@@ -1436,12 +1497,16 @@ err:
  */
 static int do_test_1sect(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0)
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		goto err;
+	}
 
 	msc->offset = ret;
 
@@ -1450,10 +1515,12 @@ static int do_test_1sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - 1 * msc->sect_size,
+		pos = lseek(msc->fd, msc->offset - 1 * msc->sect_size,
 				SEEK_SET);
-		if (ret < 0)
+		if (pos < 0) {
+			ret = (int) pos;
 			goto err;
+		}
 
 		msc->offset = ret;
 
@@ -1484,12 +1551,16 @@ err:
  */
 static int do_test_simple(struct usb_msc_test *msc)
 {
+	off_t			pos;
+
 	int			ret = 0;
 	int			i;
 
-	ret = lseek(msc->fd, 0, SEEK_CUR);
-	if (ret < 0)
+	pos = lseek(msc->fd, 0, SEEK_CUR);
+	if (pos < 0) {
+		ret = (int) pos;
 		goto err;
+	}
 
 	msc->offset = ret;
 
@@ -1498,9 +1569,11 @@ static int do_test_simple(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		ret = lseek(msc->fd, msc->offset - msc->size, SEEK_SET);
-		if (ret < 0)
+		pos = lseek(msc->fd, msc->offset - msc->size, SEEK_SET);
+		if (pos < 0) {
+			ret = (int) pos;
 			goto err;
+		}
 
 		msc->offset = ret;
 
