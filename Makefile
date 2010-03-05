@@ -21,7 +21,8 @@
 
 CROSS_COMPILE = arm-linux-
 CC = gcc
-CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing
+CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
+	 -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LIBUSB= -lusb-1.0
 
 PROGRAMS = cleware msc serialc

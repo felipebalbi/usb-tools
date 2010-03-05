@@ -20,8 +20,6 @@
  * along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
-
 #include <libusb-1.0/libusb.h>
 
 #include <stdio.h>
