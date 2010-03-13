@@ -130,18 +130,20 @@ err0:
  * do_write - writes our buffer to fd
  * @serial:	Serial Test Context
  */
-static int do_write(struct usb_serial_test *serial)
+static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
-	unsigned		size = serial->size;
 	int			done = 0;
 	int			ret;
 
 	char			*buf = serial->buf;
 
-	while (done < size) {
-		ret = write(serial->fd, buf + done, size - done);
+	DBG("%s: writting %d bytes\n", __func__, bytes);
+
+	while (done < bytes) {
+		ret = write(serial->fd, buf + done, bytes - done);
 		if (ret < 0) {
-			perror("do_write");
+			DBG("%s: failed to write %u bytes\n",
+					__func__, bytes);
 			goto err;
 		}
 
@@ -149,7 +151,7 @@ static int do_write(struct usb_serial_test *serial)
 		serial->amount_write += ret;
 	}
 
-	return 0;
+	return done;
 
 err:
 	return ret;
@@ -170,15 +172,19 @@ static int do_read(struct usb_serial_test *serial)
 	while (done < size) {
 		ret = read(serial->fd, buf + done, size - done);
 		if (ret < 0) {
-			perror("do_read");
+			DBG("%s: failed to read\n", __func__);
 			goto err;
 		}
+
+		size = (buf[0] << 8) | buf[1];
 
 		done += ret;
 		serial->amount_read += ret;
 	}
 
-	return 0;
+	DBG("%s: read %d bytes\n", __func__, done);
+
+	return done;
 
 err:
 	return ret;
@@ -197,7 +203,7 @@ static int do_poll(struct usb_serial_test *serial)
 
 	ret = poll(serial->pfd, 1, -1);
 	if (ret <= 0) {
-		perror("do_poll");
+		DBG("%s: poll failed\n", __func__);
 		goto err;
 	}
 
@@ -213,6 +219,7 @@ err:
  */
 static int do_test(struct usb_serial_test *serial)
 {
+	uint16_t		bytes;
 	int			ret;
 
 	ret = do_poll(serial);
@@ -223,7 +230,9 @@ static int do_test(struct usb_serial_test *serial)
 	if (ret < 0)
 		goto err;
 
-	ret = do_write(serial);
+	bytes = ret;
+
+	ret = do_write(serial, bytes);
 	if (ret < 0)
 		goto err;
 
@@ -358,12 +367,6 @@ int main(int argc, char *argv[])
 			DBG("%s test failed\n", __func__);
 			goto err5;
 		}
-
-		printf("[ using %s read %10.02f MB wrote %10.02f MB ]\r", tty,
-				(float) serial->amount_read / 1024 / 1024,
-				(float) serial->amount_write / 1024 / 1024);
-
-		fflush(stdout);
 	}
 
 	free(serial->pfd);

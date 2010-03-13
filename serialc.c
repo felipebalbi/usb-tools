@@ -62,7 +62,7 @@ static struct timeval		end;
  * @txbuf:		tx buffer
  * @rxbuf:		rx buffer
  */
-struct usb_serial_test { 
+struct usb_serial_test {
 	libusb_device_handle	*udevh;
 	uint64_t		transferred;
 
@@ -171,7 +171,7 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 {
 	int			ret;
 
-	/* for now this will only work with g_nokia, but we will
+	/* FIXME for now this will only work with g_nokia, but we will
 	 * extend this later in order to work with any u_serial
 	 * gadget driver
 	 */
@@ -187,6 +187,9 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 		DBG("%s: couldn't set altsetting\n", __func__);
 		goto err1;
 	}
+
+	serial->eprx = 0x82;
+	serial->eptx = 0x02;
 
 	return 0;
 
@@ -215,17 +218,21 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 /**
  * do_write - Write txbuf to fd
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to write
  */
-static int do_write(struct usb_serial_test *serial)
+static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			transferred = 0;
 	int			done = 0;
 	int			ret;
 
-	while (done < serial->size) {
+	serial->txbuf[0] = bytes >> 8;
+	serial->txbuf[1] = (bytes << 8) >> 8;
+
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
 		ret = libusb_bulk_transfer(serial->udevh, serial->eptx,
-				serial->txbuf + done, serial->size - done,
+				serial->txbuf + done, bytes - done,
 				&transferred, TIMEOUT);
 		if (ret < 0) {
 			DBG("%s: failed to send data\n", __func__);
@@ -247,20 +254,21 @@ err:
 /**
  * do_read - Read from fd to rxbuf
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to read
  */
-static int do_read(struct usb_serial_test *serial)
+static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			transferred = 0;
 	int			done = 0;
 	int			ret;
 
-	while (done < serial->size) {
+	while (done < bytes) {
 		gettimeofday(&start, NULL);
 		ret = libusb_bulk_transfer(serial->udevh, serial->eprx,
-				serial->rxbuf + done, serial->size - done,
+				serial->rxbuf + done, bytes - done,
 				&transferred, TIMEOUT);
 		if (ret < 0) {
-			DBG("%s: failed to receive data\n", __func__);
+			DBG("%s: failed receiving %d/%d bytes\n", __func__, done, bytes);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
@@ -278,13 +286,13 @@ err:
 /**
  * do_verify - Verify consistency of data
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to verify
  */
-static int do_verify(struct usb_serial_test *serial)
+static int do_verify(struct usb_serial_test *serial, uint16_t bytes)
 {
-	unsigned		size = serial->size;
 	int			i;
 
-	for (i = 0; i < size; i++)
+	for (i = 0; i < bytes; i++)
 		if (serial->txbuf[i] != serial->rxbuf[i]) {
 			printf("%s: byte %d failed [%02x %02x]\n", __func__,
 					i, serial->txbuf[i], serial->rxbuf[i]);
@@ -297,20 +305,21 @@ static int do_verify(struct usb_serial_test *serial)
 /**
  * do_test - Write, Read and Verify
  * @serial:	Serial Test Context
+ * @bytes:	amount of data to transfer
  */
-static int do_test(struct usb_serial_test *serial)
+static int do_test(struct usb_serial_test *serial, uint16_t bytes)
 {
 	int			ret;
 
-	ret = do_write(serial);
+	ret = do_write(serial, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_read(serial);
+	ret = do_read(serial, bytes);
 	if (ret < 0)
 		goto err;
 
-	ret = do_verify(serial);
+	ret = do_verify(serial, bytes);
 	if (ret < 0)
 		goto err;
 
@@ -413,8 +422,6 @@ int main(int argc, char *argv[])
 	serial->size = size;
 	serial->vid = vid;
 	serial->pid = pid;
-	serial->eprx = 0x82;
-	serial->eptx = 0x02;
 
 	ret = alloc_and_init_buffer(serial);
 	if (ret < 0) {
@@ -441,12 +448,21 @@ int main(int argc, char *argv[])
 		goto err2;
 	}
 
+	srand(1024);
+
 	while (1) {
 		float		transferred = 0;
 		int		i;
+		unsigned	n;
 		char		*unit = NULL;
 
-		ret = do_test(serial);
+		/* We want packet size to be in range [2 , serial->size],
+		*  as first two bytes are holding the packet size */
+		n = random() % (serial->size - 1) + 2;
+
+		DBG("%s sending %d bytes\n", __func__, n);
+
+		ret = do_test(serial, n);
 		if (ret < 0) {
 			DBG("%s: test failed\n", __func__);
 			goto err3;
@@ -463,16 +479,19 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
-				vid, pid, transferred, unit, transferred > 1 ? "s" : "",
-				serial->read_tput, serial->write_tput);
+		if (debug == 0) {
+			printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+					vid, pid, transferred, unit, transferred > 1 ? "s" : "",
+					serial->read_tput, serial->write_tput);
 
-		fflush(stdout);
+			fflush(stdout);
+		}
 	}
 
 	release_interface(serial);
 	libusb_exit(context);
 	free(serial->rxbuf);
+	free(serial->txbuf);
 	free(serial);
 
 	return 0;
