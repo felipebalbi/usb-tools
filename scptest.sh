@@ -21,18 +21,29 @@
 # along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
 ##
 
-# Shows a nice rotating bar
-spinner(){
-	PROC=$1
+MAX=102400
 
-	while [ -d /proc/$PROC ]; do
-		echo -ne '\b/' ; sleep 0.05
-		echo -ne '\b-' ; sleep 0.05
-		echo -ne '\b\' ; sleep 0.05
-		echo -ne '\b|' ; sleep 0.05
+start_spinner() {
+	chars=( "-" "\\" "|" "/" )
+	interval=0.05
+	count=0
+	pid=$1
+
+	while true;
+	do
+		pos=$(($count % 4))
+
+		echo -en "\b${chars[$pos]}"
+
+		count=$(($count + 1))
+		sleep $interval
 	done
+}
 
-	return 0
+stop_spinner() {
+	exec 2>/dev/null
+	kill $1
+	echo -en "\b"
 }
 
 sudo ifconfig usb0 192.168.2.14 up
@@ -72,76 +83,128 @@ Wait while creating test files
 "
 
 echo -n "test_file_100M.mp3                      "
-dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 &> /dev/null &
-spinner $(pidof dd)
-echo -e "\bDONE"
+start_spinner &
+pid=$!
+dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 &> /dev/null
+stop_spinner $pid
+echo -e "DONE"
 
 echo -n "test_file_250x400K.mp3                  "
-dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 &> /dev/null &
-spinner $(pidof dd)
-echo -e "\bDONE"
+start_spinner &
+pid=$!
+dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 &> /dev/null
+stop_spinner $pid
+echo -e "DONE"
 
 echo -n "test_file_10Kx10K.mp3                   "
-dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 &> /dev/null &
-spinner $(pidof dd)
-echo -e "\bDONE"
+start_spinner &
+pid=$!
+dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 &> /dev/null
+stop_spinner $pid
+echo -e "DONE"
+
+echo -n "1000 random sized files                 "
+if [ ! -d _output ]; then
+	mkdir _output
+fi
+
+start_spinner &
+pid=$!
+for i in `seq 1 1000`; do
+	number=$RANDOM
+	let "number %= $MAX"
+
+	dd if=/dev/urandom of=_output/test_random_$i.mp3 bs=$number count=1 &> /dev/null
+done
+stop_spinner $pid
+echo -e "DONE"
 
 echo ""
 
 echo -n "test 1: scp 100M file to device         "
-scp -q test_file_100M.mp3 root@192.168.2.15:/home/user/MyDocs/ &
-spinner $(pidof scp)
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_100M.mp3 test_file_100Mx.mp3 &
-spinner $(pidof scp)
-if cmp test_file_100M.mp3 test_file_100Mx.mp3;
+
+start_spinner &
+pid=$!
+
+scp -q test_file_100M.mp3 root@192.168.2.15:/home/user/MyDocs/
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_100M.mp3 test_file_100Mx.mp3
+
+stop_spinner $pid
+
+if cmp -s test_file_100M.mp3 test_file_100Mx.mp3;
 then
-	echo -e "\bPASSED"
+	echo -e "PASSED"
 else
-	echo -e "\bFAILED"
-	exit;
+	echo -e "FAILED"
 fi
 
 echo -n "test 2: scp 250x400K file to device     "
-scp -q test_file_250x400K.mp3 root@192.168.2.15:/home/user/MyDocs/ &
-spinner $(pidof scp)
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_250x400K.mp3 test_file_250x400Kx.mp3 &
-spinner $(pidof scp)
-if cmp test_file_250x400K.mp3 test_file_250x400Kx.mp3
+
+start_spinner &
+pid=$!
+
+scp -q test_file_250x400K.mp3 root@192.168.2.15:/home/user/MyDocs/
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_250x400K.mp3 test_file_250x400Kx.mp3
+
+stop_spinner $pid
+
+if cmp -s test_file_250x400K.mp3 test_file_250x400Kx.mp3
 then
-	echo -e "\bPASSED"
+	echo -e "PASSED"
 else
-	echo -e "\bFAILED"
-	exit;
+	echo -e "FAILED"
 fi
 
 echo -n "test 3: scp 10Kx10K file to device      "
-scp -q test_file_10Kx10K.mp3 root@192.168.2.15:/home/user/MyDocs/ &
-spinner $(pidof scp)
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3 &
-spinner $(pidof scp)
-if cmp test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
+
+start_spinner &
+pid=$!
+
+scp -q test_file_10Kx10K.mp3 root@192.168.2.15:/home/user/MyDocs/
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
+
+stop_spinner $pid
+
+if cmp -s test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
 then
-	echo -e "\bPASSED"
+	echo -e "PASSED"
 else
-	echo -e "\bFAILED"
-	exit;
+	echo -e "FAILED"
 fi
 
 echo -n "test 4: scp 1000 small files to device  "
+
+start_spinner &
+pid=$!
+
 for i in `seq 1 1000`; do
-	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 &> /dev/null &
-	spinner $(pidof dd)
-	scp -q test_small_file.mp3 root@192.168.2.15:/home/user/MyDocs &
-	spinner $(pidof scp)
+	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 &> /dev/null
+	scp -q test_small_file.mp3 root@192.168.2.15:/home/user/MyDocs
 	scp -q root@192.168.2.15:/home/user/MyDocs/test_small_file.mp3 test_small_file_device.mp3
-	spinner $(pidof scp)
-	if ! cmp test_small_file.mp3 test_small_file_device.mp3
+	if ! cmp -s test_small_file.mp3 test_small_file_device.mp3
 	then
-		echo -e "\bFAILED"
-		exit;
+		echo -e "FAILED"
 	fi;
 done
+stop_spinner $pid
 
-echo -e "\bPASSED"
+echo -e "PASSED"
 
-rm *.mp3
+echo -n "test 5: pipe tar through ssh            "
+
+start_spinner &
+pid=$!
+
+(tar cf - ./_output/* &> /dev/null | ssh -q root@192.168.2.15 sh -c "'(cd /home/user/MyDocs && tar -xf -)'") &> /dev/null
+
+stop_spinner $pid
+
+if ! $?; then
+	echo -e "PASSED"
+else
+	echo -e "FAILED"
+fi
+
+rm -f *.mp3
+rm -rf _output
+
