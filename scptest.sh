@@ -71,67 +71,77 @@ echo "
 Wait while creating test files
 "
 
-echo -n "test_file_100M.mp3        "
+echo -n "test_file_100M.mp3                      "
 dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 &> /dev/null &
 spinner $(pidof dd)
-echo ""
+echo -e "\bDONE"
 
-echo -n "test_file_250x400K.mp3    "
+echo -n "test_file_250x400K.mp3                  "
 dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 &> /dev/null &
 spinner $(pidof dd)
-echo ""
+echo -e "\bDONE"
 
-echo -n "test_file_10Kx10K.mp3     "
+echo -n "test_file_10Kx10K.mp3                   "
 dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 &> /dev/null &
 spinner $(pidof dd)
-echo "
-"
+echo -e "\bDONE"
+
+echo ""
 
 echo -n "test 1: scp 100M file to device         "
-scp -q test_file_100M.mp3 root@192.168.2.15:/home/user/MyDocs/
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_100M.mp3 test_file_100Mx.mp3
+scp -q test_file_100M.mp3 root@192.168.2.15:/home/user/MyDocs/ &
+spinner $(pidof scp)
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_100M.mp3 test_file_100Mx.mp3 &
+spinner $(pidof scp)
 if cmp test_file_100M.mp3 test_file_100Mx.mp3;
 then
-	echo "PASSED"
+	echo -e "\bPASSED"
 else
-	echo "FAILED"
+	echo -e "\bFAILED"
 	exit;
 fi
 
 echo -n "test 2: scp 250x400K file to device     "
-scp -q test_file_250x400K.mp3 root@192.168.2.15:/home/user/MyDocs/
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_250x400K.mp3 test_file_250x400Kx.mp3
+scp -q test_file_250x400K.mp3 root@192.168.2.15:/home/user/MyDocs/ &
+spinner $(pidof scp)
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_250x400K.mp3 test_file_250x400Kx.mp3 &
+spinner $(pidof scp)
 if cmp test_file_250x400K.mp3 test_file_250x400Kx.mp3
 then
-	echo "PASSED"
+	echo -e "\bPASSED"
 else
-	echo "FAILED"
+	echo -e "\bFAILED"
 	exit;
 fi
 
 echo -n "test 3: scp 10Kx10K file to device      "
-scp -q test_file_10Kx10K.mp3 root@192.168.2.15:/home/user/MyDocs/
-scp -q root@192.168.2.15:/home/user/MyDocs/test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
+scp -q test_file_10Kx10K.mp3 root@192.168.2.15:/home/user/MyDocs/ &
+spinner $(pidof scp)
+scp -q root@192.168.2.15:/home/user/MyDocs/test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3 &
+spinner $(pidof scp)
 if cmp test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
 then
-	echo "PASSED"
+	echo -e "\bPASSED"
 else
-	echo "FAILED"
+	echo -e "\bFAILED"
 	exit;
 fi
 
 echo -n "test 4: scp 1000 small files to device  "
 for i in `seq 1 1000`; do
-	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 &> /dev/null;
-	scp -q test_small_file.mp3 root@192.168.2.15:/home/user/MyDocs;
+	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 &> /dev/null &
+	spinner $(pidof dd)
+	scp -q test_small_file.mp3 root@192.168.2.15:/home/user/MyDocs &
+	spinner $(pidof scp)
 	scp -q root@192.168.2.15:/home/user/MyDocs/test_small_file.mp3 test_small_file_device.mp3
+	spinner $(pidof scp)
 	if ! cmp test_small_file.mp3 test_small_file_device.mp3
 	then
-		echo "FAILED"
+		echo -e "\bFAILED"
 		exit;
 	fi;
 done
 
-echo "PASSED"
+echo -e "\bPASSED"
 
 rm *.mp3
