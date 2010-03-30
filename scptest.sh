@@ -21,6 +21,15 @@
 # along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
 ##
 
+trap cleanup 1 2 3 6
+
+cleanup()
+{
+	echo "INTERRUPTED EXITING"
+	stop_spinner $pid
+	exit 1
+}
+
 MAX=102400
 
 start_spinner() {
@@ -183,7 +192,8 @@ start_spinner &
 pid=$!
 
 for i in `seq 1 1000`; do
-	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 &> /dev/null
+	rm test_small*.mp3
+	dd if=/dev/urandom of=test_small_file.mp3 bs=1 count=123 > /dev/null 2>&1
 	scp -q test_small_file.mp3 root@192.168.2.15:/home/user/MyDocs
 	scp -q root@192.168.2.15:/home/user/MyDocs/test_small_file.mp3 test_small_file_device.mp3
 	if ! cmp -s test_small_file.mp3 test_small_file_device.mp3
@@ -200,7 +210,7 @@ echo -n "test 5: pipe tar through ssh            "
 start_spinner &
 pid=$!
 
-(tar cf - ./_output/* &> /dev/null | ssh -q root@192.168.2.15 sh -c "'(cd /home/user/MyDocs && tar -xf -)'") &> /dev/null
+(tar cf - ./_output/* &> /dev/null | ssh -q root@192.168.2.15 sh -c "'(cd /home/user/MyDocs && tar -xf -)'") > /dev/null 2>&1
 
 stop_spinner $pid
 
