@@ -24,29 +24,29 @@
 MAX=102400
 
 start_spinner() {
-	chars=( "-" "\\" "|" "/" )
 	interval=0.05
-	count=0
-	pid=$1
 
 	while true;
 	do
-		pos=$(($count % 4))
+		echo -n "\b-";
+		sleep $interval;
 
-		echo -en "\b${chars[$pos]}"
+		echo -n "\b\\";
+		sleep $interval;
 
-		count=$(($count + 1))
-		sleep $interval
+		echo -n "\b|";
+		sleep $interval;
+
+		echo -n "\b/";
+		sleep $interval;
 	done
 }
 
 stop_spinner() {
 	exec 2>/dev/null
 	kill $1
-	echo -en "\b"
+	echo -n "\b"
 }
-
-sudo ifconfig usb0 192.168.2.14 up
 
 read -p "Please run the following command lines on your device:
 
@@ -54,7 +54,12 @@ read -p "Please run the following command lines on your device:
 # /etc/init.d/networking start
 # /etc/init.d/ssh start
 
-Press <ENTER> when you're ready  "
+Press <ENTER> when you're ready  " var
+
+sudo ifconfig usb0 192.168.2.14 up
+if [ $? != 0 ]; then
+	exit 1;
+fi
 
 # Check whether mmc is mounted and if not,
 # mount it on the correct location
@@ -85,23 +90,23 @@ Wait while creating test files
 echo -n "test_file_100M.mp3                      "
 start_spinner &
 pid=$!
-dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 &> /dev/null
+dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 >/dev/null 2>&1
 stop_spinner $pid
-echo -e "DONE"
+echo "DONE"
 
 echo -n "test_file_250x400K.mp3                  "
 start_spinner &
 pid=$!
-dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 &> /dev/null
+dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 >/dev/null 2>&1
 stop_spinner $pid
-echo -e "DONE"
+echo "DONE"
 
 echo -n "test_file_10Kx10K.mp3                   "
 start_spinner &
 pid=$!
-dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 &> /dev/null
+dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 >/dev/null 2>&1
 stop_spinner $pid
-echo -e "DONE"
+echo "DONE"
 
 echo -n "1000 random sized files                 "
 if [ ! -d _output ]; then
@@ -114,10 +119,10 @@ for i in `seq 1 1000`; do
 	number=$RANDOM
 	let "number %= $MAX"
 
-	dd if=/dev/urandom of=_output/test_random_$i.mp3 bs=$number count=1 &> /dev/null
+	dd if=/dev/urandom of=_output/test_random_$i.mp3 bs=$number count=1 >/dev/null 2>&1
 done
 stop_spinner $pid
-echo -e "DONE"
+echo "DONE"
 
 echo ""
 
@@ -133,9 +138,9 @@ stop_spinner $pid
 
 if cmp -s test_file_100M.mp3 test_file_100Mx.mp3;
 then
-	echo -e "PASSED"
+	echo "PASSED"
 else
-	echo -e "FAILED"
+	echo "FAILED"
 fi
 
 echo -n "test 2: scp 250x400K file to device     "
@@ -150,9 +155,9 @@ stop_spinner $pid
 
 if cmp -s test_file_250x400K.mp3 test_file_250x400Kx.mp3
 then
-	echo -e "PASSED"
+	echo "PASSED"
 else
-	echo -e "FAILED"
+	echo "FAILED"
 fi
 
 echo -n "test 3: scp 10Kx10K file to device      "
@@ -167,9 +172,9 @@ stop_spinner $pid
 
 if cmp -s test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
 then
-	echo -e "PASSED"
+	echo "PASSED"
 else
-	echo -e "FAILED"
+	echo "FAILED"
 fi
 
 echo -n "test 4: scp 1000 small files to device  "
@@ -183,12 +188,12 @@ for i in `seq 1 1000`; do
 	scp -q root@192.168.2.15:/home/user/MyDocs/test_small_file.mp3 test_small_file_device.mp3
 	if ! cmp -s test_small_file.mp3 test_small_file_device.mp3
 	then
-		echo -e "FAILED"
+		echo "FAILED"
 	fi;
 done
 stop_spinner $pid
 
-echo -e "PASSED"
+echo "PASSED"
 
 echo -n "test 5: pipe tar through ssh            "
 
@@ -200,9 +205,9 @@ pid=$!
 stop_spinner $pid
 
 if ! $?; then
-	echo -e "PASSED"
+	echo "PASSED"
 else
-	echo -e "FAILED"
+	echo "FAILED"
 fi
 
 rm -f *.mp3
