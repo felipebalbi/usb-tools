@@ -208,7 +208,7 @@ printf "test 5: pipe tar through ssh            "
 start_spinner &
 pid=$!
 
-(tar cf - ./_output/* &> /dev/null | ssh -q root@192.168.2.15 sh -c "'(cd /home/user/MyDocs && tar -xf -)'") > /dev/null 2>&1
+(tar cf - ./_output/* > /dev/null 2>&1 | ssh -q root@192.168.2.15 sh -c "'(cd /home/user/MyDocs && tar -xf -)'") > /dev/null 2>&1
 
 stop_spinner $pid
 
