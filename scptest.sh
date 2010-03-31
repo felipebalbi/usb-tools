@@ -25,7 +25,7 @@ trap cleanup 1 2 3 6
 
 cleanup()
 {
-	echo "INTERRUPTED EXITING"
+	printf "INTERRUPTED EXITING\n"
 	stop_spinner $pid
 	exit 1
 }
@@ -37,16 +37,16 @@ start_spinner() {
 
 	while true;
 	do
-		echo -n "\b-";
+		printf "\b-";
 		sleep $interval;
 
-		echo -n "\b\\";
+		printf "\b\\";
 		sleep $interval;
 
-		echo -n "\b|";
+		printf "\b|";
 		sleep $interval;
 
-		echo -n "\b/";
+		printf "\b/";
 		sleep $interval;
 	done
 }
@@ -54,7 +54,7 @@ start_spinner() {
 stop_spinner() {
 	exec 2>/dev/null
 	kill $1
-	echo -n "\b"
+	printf "\b"
 }
 
 read -p "Please run the following command lines on your device:
@@ -92,32 +92,30 @@ if [ ! -d /home/user/MyDocs ]; then
 	ssh root@192.168.2.15 "mkdir -p /home/user/MyDocs";
 fi
 
-echo "
-Wait while creating test files
-"
+printf "\nWait while creating test files\n"
 
-echo -n "test_file_100M.mp3                      "
+printf "test_file_100M.mp3                      "
 start_spinner &
 pid=$!
 dd if=/dev/urandom of=test_file_100M.mp3 bs=100M count=1 >/dev/null 2>&1
 stop_spinner $pid
-echo "DONE"
+printf "DONE\n"
 
-echo -n "test_file_250x400K.mp3                  "
+printf "test_file_250x400K.mp3                  "
 start_spinner &
 pid=$!
 dd if=/dev/urandom of=test_file_250x400K.mp3 bs=400K count=250 >/dev/null 2>&1
 stop_spinner $pid
-echo "DONE"
+printf "DONE\n"
 
-echo -n "test_file_10Kx10K.mp3                   "
+printf "test_file_10Kx10K.mp3                   "
 start_spinner &
 pid=$!
 dd if=/dev/urandom of=test_file_10Kx10K.mp3 bs=10K count=10000 >/dev/null 2>&1
 stop_spinner $pid
-echo "DONE"
+printf "DONE\n"
 
-echo -n "1000 random sized files                 "
+printf "1000 random sized files                 "
 if [ ! -d _output ]; then
 	mkdir _output
 fi
@@ -131,11 +129,11 @@ for i in `seq 1 1000`; do
 	dd if=/dev/urandom of=_output/test_random_$i.mp3 bs=$number count=1 >/dev/null 2>&1
 done
 stop_spinner $pid
-echo "DONE"
+printf "DONE\n"
 
-echo ""
+printf "\n"
 
-echo -n "test 1: scp 100M file to device         "
+printf "test 1: scp 100M file to device         "
 
 start_spinner &
 pid=$!
@@ -147,12 +145,12 @@ stop_spinner $pid
 
 if cmp -s test_file_100M.mp3 test_file_100Mx.mp3;
 then
-	echo "PASSED"
+	printf "PASSED\n"
 else
-	echo "FAILED"
+	printf "FAILED\n"
 fi
 
-echo -n "test 2: scp 250x400K file to device     "
+printf "test 2: scp 250x400K file to device     "
 
 start_spinner &
 pid=$!
@@ -164,12 +162,12 @@ stop_spinner $pid
 
 if cmp -s test_file_250x400K.mp3 test_file_250x400Kx.mp3
 then
-	echo "PASSED"
+	printf "PASSED\n"
 else
-	echo "FAILED"
+	printf "FAILED\n"
 fi
 
-echo -n "test 3: scp 10Kx10K file to device      "
+printf "test 3: scp 10Kx10K file to device      "
 
 start_spinner &
 pid=$!
@@ -181,12 +179,12 @@ stop_spinner $pid
 
 if cmp -s test_file_10Kx10K.mp3 test_file_10Kx10Kx.mp3
 then
-	echo "PASSED"
+	printf "PASSED\n"
 else
-	echo "FAILED"
+	printf "FAILED\n"
 fi
 
-echo -n "test 4: scp 1000 small files to device  "
+printf "test 4: scp 1000 small files to device  "
 
 start_spinner &
 pid=$!
@@ -198,14 +196,14 @@ for i in `seq 1 1000`; do
 	scp -q root@192.168.2.15:/home/user/MyDocs/test_small_file.mp3 test_small_file_device.mp3
 	if ! cmp -s test_small_file.mp3 test_small_file_device.mp3
 	then
-		echo "FAILED"
+		printf "FAILED\n"
 	fi;
 done
 stop_spinner $pid
 
-echo "PASSED"
+printf "PASSED\n"
 
-echo -n "test 5: pipe tar through ssh            "
+printf "test 5: pipe tar through ssh            "
 
 start_spinner &
 pid=$!
@@ -215,9 +213,9 @@ pid=$!
 stop_spinner $pid
 
 if ! $?; then
-	echo "PASSED"
+	printf "PASSED\n"
 else
-	echo "FAILED"
+	printf "FAILED\n"
 fi
 
 rm -f *.mp3
