@@ -49,13 +49,15 @@ static struct timeval		end;
 		printf(fmt, ## args)
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define TIMEOUT		1000	/* ms */
+#define TIMEOUT		2000	/* ms */
 
 /**
  * usb_serial_test - USB u_serial Test Context
  * @transferred:	amount of data transferred so far
  * @read_tput:		read throughput
  * @write_tput:		write throughput
+ * @interface_num:	interface number
+ * @alt_setting:	alternate setting
  * @eprx:		rx endpoint number
  * @eptx:		tx endpoint number
  * @size:		buffer size
@@ -72,6 +74,9 @@ struct usb_serial_test {
 	unsigned		size;
 	unsigned		vid;
 	unsigned		pid;
+
+	int			interface_num;
+	int			alt_setting;
 
 	uint8_t			eprx;
 	uint8_t			eptx;
@@ -176,20 +181,19 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 	 * gadget driver
 	 */
 
-	ret = libusb_claim_interface(serial->udevh, 3);
+	ret = libusb_claim_interface(serial->udevh, serial->interface_num);
 	if (ret < 0) {
 		DBG("%s: couldn't claim interface\n", __func__);
 		goto err0;
 	}
 
-	ret = libusb_set_interface_alt_setting(serial->udevh, 3, 1);
+	ret = libusb_set_interface_alt_setting(serial->udevh,
+						serial->interface_num,
+						serial->alt_setting);
 	if (ret < 0) {
 		DBG("%s: couldn't set altsetting\n", __func__);
 		goto err1;
 	}
-
-	serial->eprx = 0x82;
-	serial->eptx = 0x02;
 
 	return 0;
 
@@ -334,6 +338,10 @@ static void usage(char *prog)
 	printf("Usage: %s\n\
 			--vid, -v	USB Vendor ID\n\
 			--pid, -p	USB Product ID\n\
+			--inum, -i	interface number\n\
+			--alt, -a	alternate setting\n\
+			--rxep, -r	rx endpoint number\n\
+			--txep, -t	tx endpoint number\n\
 			--size, -s	Internal buffer size\n\
 			--debug, -d	Enables debugging messages\n\
 			--help, -h	This help\n", prog);
@@ -349,6 +357,26 @@ static struct option serial_opts[] = {
 		.name		= "pid",
 		.has_arg	= 1,
 		.val		= 'p',
+	},
+	{
+		.name		= "inum",
+		.has_arg	= 1,
+		.val		= 'i',
+	},
+	{
+		.name		= "alt",
+		.has_arg	= 1,
+		.val		= 'a',
+	},
+	{
+		.name		= "rxep",
+		.has_arg	= 1,
+		.val		= 'r',
+	},
+	{
+		.name		= "txep",
+		.has_arg	= 1,
+		.val		= 't',
 	},
 	{
 		.name		= "size",	/* rx/tx buffer sizes */
@@ -371,8 +399,11 @@ int main(int argc, char *argv[])
 	libusb_context		*context;
 	struct usb_serial_test	*serial;
 	unsigned		size = 0;
+	int			if_num = 0;
+	int			alt_set = 0;
+	uint8_t			eprx = 0;
+	uint8_t			eptx = 0;
 	int			ret = 0;
-
 	unsigned		vid = 0xffff;
 	unsigned		pid = 0xffff;
 
@@ -380,8 +411,8 @@ int main(int argc, char *argv[])
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "v:p:s:dh", serial_opts, &optidx);
-		if (opt < 0)
+	opt = getopt_long(argc, argv, "v:p:s:i:a:r:t:dh", serial_opts, &optidx);
+	if (opt < 0)
 			break;
 
 		switch (opt) {
@@ -390,6 +421,18 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			pid = strtoul(optarg, NULL, 16);
+			break;
+		case 'r':
+			eprx = strtol(optarg,NULL, 16);
+			break;
+		case 't':
+			eptx = strtol(optarg, NULL, 16);
+			break;
+		case 'i':
+			if_num = atoi(optarg);
+			break;
+		case 'a':
+			alt_set = atoi(optarg);
 			break;
 		case 's':
 			size = atoi(optarg);
@@ -422,6 +465,10 @@ int main(int argc, char *argv[])
 	serial->size = size;
 	serial->vid = vid;
 	serial->pid = pid;
+	serial->eprx = eprx;
+	serial->eptx = eptx;
+	serial->interface_num = if_num;
+	serial->alt_setting = alt_set;
 
 	ret = alloc_and_init_buffer(serial);
 	if (ret < 0) {
