@@ -198,7 +198,7 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 	return 0;
 
 err1:
-	libusb_release_interface(serial->udevh, 3);
+	libusb_release_interface(serial->udevh, serial->interface_num);
 
 err0:
 	return ret;
@@ -206,7 +206,7 @@ err0:
 
 static void release_interface(struct usb_serial_test *serial)
 {
-	libusb_release_interface(serial->udevh, 3);
+	libusb_release_interface(serial->udevh, serial->interface_num);
 }
 
 static float throughput(struct timeval *start, struct timeval *end, size_t size)
