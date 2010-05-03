@@ -28,8 +28,11 @@ then
 	num=10000
 fi
 
-sudo ifconfig usb0 >/dev/null
-sleep 1;
+while ! `sudo ifconfig usb0 >/dev/null 2>&1`; do
+	printf "waiting for usb0\n"
+	sleep 1;
+done
+
 sudo ifconfig usb0 192.168.2.14
 
 if ! `ping -I usb0 192.168.2.15 -c 1 >/dev/null 2>&1`
