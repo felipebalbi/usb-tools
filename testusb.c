@@ -361,14 +361,9 @@ usage:
 		goto usage;
 	}
 
-	if ((c = open ("/proc/bus/usb/devices", O_RDONLY)) < 0) {
-		fputs ("usbfs files are missing\n", stderr);
-		return -1;
-	}
-
 	/* collect and list the test devices */
-	if (ftw ("/proc/bus/usb", find_testdev, 3) != 0) {
-		fputs ("ftw failed; is usbfs missing?\n", stderr);
+	if (ftw("/dev/bus/usb", find_testdev, 3) != 0) {
+		fputs("ftw failed; is usbfs missing?\n", stderr);
 		return -1;
 	}
 
