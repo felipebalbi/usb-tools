@@ -28,14 +28,14 @@ then
 	num=10000
 fi
 
-while ! `sudo ifconfig usb0 >/dev/null 2>&1`; do
+while ! sudo ifconfig usb0 >/dev/null 2>&1; do
 	printf "waiting for usb0\n"
 	sleep 1;
 done
 
 sudo ifconfig usb0 192.168.2.14
 
-if ! `ping -I usb0 192.168.2.15 -c 1 >/dev/null 2>&1`
+if ! ping -I usb0 192.168.2.15 -c 1 >/dev/null 2>&1
 then
 	printf "NO INTERFACE\n" >/dev/stderr
 	exit 1
@@ -43,10 +43,10 @@ fi
 
 RANDOM=1024
 
-for i in `seq 1 $num`; do
+for i in $(seq 1 $num); do
 	size=$RANDOM
 	printf "pinging with size $size     \t\t"
-	if ! `ping -c 1 192.168.2.15 -s $size >/dev/null 2>&1`; then
+	if ! ping -c 1 192.168.2.15 -s $size >/dev/null 2>&1; then
 		printf "FAILED\n"
 		break
 	fi
