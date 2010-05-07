@@ -21,6 +21,13 @@
 # along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
 ##
 
+random()
+{
+	size=$(dd if=/dev/urandom count=1 2>/dev/null|cksum|
+	cut -f1 -d" "|tr '-' '\0')
+	size=$(expr $size % 60000)
+}
+
 num=$1
 
 if [ -z $num ]
@@ -41,10 +48,8 @@ then
 	exit 1
 fi
 
-RANDOM=1024
-
 for i in $(seq 1 $num); do
-	size=$RANDOM
+	random
 	printf "pinging with size $size     \t\t"
 	if ! ping -c 1 192.168.2.15 -s $size >/dev/null 2>&1; then
 		printf "FAILED\n"
