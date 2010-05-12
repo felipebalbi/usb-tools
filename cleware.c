@@ -53,7 +53,7 @@ struct usb_device_id {
 }
 
 static struct usb_device_id cleware_id[] = {
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 1),
+	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 4),
 };
 
 static int num_ports;
