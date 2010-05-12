@@ -333,25 +333,25 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	int			ret;
 
-	if (port + 1 > num_ports) {
+	if (port > num_ports) {
 		DBG("%s: this device doesn't have that many ports\n", __func__);
 		return -EINVAL;
 	}
 
-	ret = set_switch(udevh, port, on);
+	ret = set_switch(udevh, port - 1, on);
 	if (ret < 0) {
 		DBG("%s: failed to toggle switch %d\n", __func__, port);
 		return ret;
 	}
 
-	if (port == 0) {
-		ret = set_led(udevh, port, on);
+	if (port == 1) {
+		ret = set_led(udevh, port - 1, on);
 		if (ret < 0) {
 			DBG("%s: couldn't toggle led %d\n", __func__, port);
 			return ret;
 		}
 
-		ret = set_led(udevh, port + 1, !on);
+		ret = set_led(udevh, port, !on);
 		if (ret < 0) {
 			DBG("%s: couldn't toggle led %d\n", __func__, port + 1);
 			return ret;
@@ -367,7 +367,7 @@ static void usage(char *name)
 			-0, --off		Switch it off\n\
 			-1, --on		Switch it on\n\
 			-s, --serial-number	Device's serial number\n\
-			-p, --port		0-based port number\n\
+			-p, --port		port number\n\
 			-d, --debug		Enable debugging\n\
 			-h, --help		Print this\n", name);
 }
