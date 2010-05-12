@@ -364,8 +364,8 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 static void usage(char *name)
 {
 	fprintf(stdout, "usage: %s [-0 | -1] [-s SerialNumber] [-d] [-h]\n\
-			-0, --on		Switch it on\n\
-			-1, --off		Switch it off\n\
+			-0, --off		Switch it off\n\
+			-1, --on		Switch it on\n\
 			-s, --serial-number	Device's serial number\n\
 			-p, --port		0-based port number\n\
 			-d, --debug		Enable debugging\n\
