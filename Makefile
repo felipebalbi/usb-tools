@@ -24,6 +24,7 @@ CC = gcc
 CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
 	 -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LIBUSB= -lusb-1.0
+LIBPTHREAD= -lpthread
 
 PROGRAMS = cleware msc serialc
 
@@ -34,7 +35,7 @@ V             = @
 Q             = $(V:1=)
 QUIET_CC      = $(Q:@=@echo    '     CC       '$@;)
 
-all: cleware msc serialc seriald
+all: cleware msc serialc seriald testusb
 
 cleware:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
@@ -47,6 +48,9 @@ msc:
 
 seriald:
 	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
+
+testusb:
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD) -o $@ $@.c
 
 clean:
 	$(Q) rm -f cleware msc serialc seriald
