@@ -50,7 +50,7 @@ fi
 
 for i in $(seq 1 $num); do
 	random
-	printf "pinging with size $size     \t\t"
+	printf "%d: \t pinging with size %-27d" $i $size
 	if ! ping -c 6 192.168.2.15 -s $size -q -i 0 >/dev/null 2>&1; then
 		printf "FAILED\n"
 		break
