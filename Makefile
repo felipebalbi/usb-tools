@@ -34,6 +34,7 @@ PROGRAMS = cleware msc serialc
 V             = @
 Q             = $(V:1=)
 QUIET_CC      = $(Q:@=@echo    '     CC       '$@;)
+QUIET_CLEAN   = $(Q:@=@echo    '     CLEAN    '$@;)
 
 all: cleware msc serialc seriald testusb
 
@@ -53,5 +54,5 @@ testusb:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD) -o $@ $@.c
 
 clean:
-	$(Q) rm -f cleware msc serialc seriald
- 
+	$(QUIET_CLEAN) rm -f cleware msc serialc seriald testusb
+
