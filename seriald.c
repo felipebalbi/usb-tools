@@ -26,7 +26,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <ctype.h>
 #include <errno.h>
 #include <termios.h>
 #include <poll.h>
@@ -36,7 +35,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-static unsigned debug;
+static unsigned char debug;
+
+#define ENABLE_DBG()	debug = 1
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -46,83 +47,47 @@ static unsigned debug;
 
 /**
  * struct usb_serial_test - Context of our test
- * @term:		terminal settings
- * @pfd:		poll fd
+ * @fd:			opened file descriptor
  * @amount_read:	amount read until now
  * @amount_write:	amount written until now
  * @size:		buffer size
- * @fd:			opened file descriptor
  * @buf:		the buffer
  */
 struct usb_serial_test {
-	struct termios		*term;
-	struct pollfd		*pfd;
+	int			fd;
 
 	uint64_t		amount_read;
 	uint64_t		amount_write;
 
 	unsigned		size;
-	int			fd;
 	char			*buf;
 };
 
 /**
- * alloc_buffer - allocates a @size buffer
- * @size:	size of buffer
- */
-static char *alloc_buffer(unsigned size)
-{
-	char			*tmp;
-
-	if (size == 0) {
-		DBG("%s: cannot allocate zero sized buffer\n", __func__);
-		return NULL;
-	}
-
-	tmp = malloc(size);
-	if (!tmp)
-		return NULL;
-
-	return tmp;
-}
-
-/**
  * tty_init - initializes an opened tty
- * @serial:	Serial Test Context
+ * @fd:		Device Handle
  */
-static int tty_init(struct usb_serial_test *serial)
+static int tty_init(int fd)
 {
-	int			ret;
+	int 		ret = 0;
+	struct termios	term;
 
-	serial->term = malloc(sizeof(*serial->term));
-	if (!serial->term) {
-		DBG("%s: could not allocate term\n", __func__);
-		ret = -ENOMEM;
-		goto err0;
-	}
+	tcgetattr(fd, &term);
 
-	tcgetattr(serial->fd, serial->term);
+	cfmakeraw(&term);
 
-	cfmakeraw(serial->term);
-
-	ret = tcflush(serial->fd, TCIOFLUSH);
+	ret = tcflush(fd, TCIOFLUSH);
 	if (ret < 0) {
 		DBG("%s: flush failed\n", __func__);
-		goto err1;
+		goto err;
 	}
 
-	ret = tcsetattr(serial->fd, TCSANOW, serial->term);
+	ret = tcsetattr(fd, TCSANOW, &term);
 	if (ret < 0) {
 		DBG("%s: couldn't set attributes\n", __func__);
-		goto err1;
+		goto err;
 	}
-
-	return 0;
-
-err1:
-	free(serial->term);
-
-err0:
+err:
 	return ret;
 }
 
@@ -132,10 +97,10 @@ err0:
  */
 static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
-	int			done = 0;
-	int			ret;
+	int		done = 0;
+	int		ret;
 
-	char			*buf = serial->buf;
+	char		*buf = serial->buf;
 
 	DBG("%s: writting %d bytes\n", __func__, bytes);
 
@@ -151,6 +116,8 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 		serial->amount_write += ret;
 	}
 
+	fsync(serial->fd);
+
 	return done;
 
 err:
@@ -163,11 +130,11 @@ err:
  */
 static int do_read(struct usb_serial_test *serial)
 {
-	unsigned		size = serial->size;
-	int			done = 0;
-	int			ret;
+	unsigned	size = serial->size;
+	int		done = 0;
+	int		ret;
 
-	char			*buf = serial->buf;
+	char		*buf = serial->buf;
 
 	while (done < size) {
 		ret = read(serial->fd, buf + done, size - done);
@@ -196,12 +163,13 @@ err:
  */
 static int do_poll(struct usb_serial_test *serial)
 {
-	int			ret = -1;
+	int		ret = -1;
+	struct pollfd	pfd;
 
-	serial->pfd->fd = serial->fd;
-	serial->pfd->events = POLLIN;
+	pfd.fd = serial->fd;
+	pfd.events = POLLIN;
 
-	ret = poll(serial->pfd, 1, -1);
+	ret = poll(&pfd, 1, -1);
 	if (ret <= 0) {
 		DBG("%s: poll failed\n", __func__);
 		goto err;
@@ -213,14 +181,62 @@ err:
 	return ret;
 }
 
+static struct usb_serial_test *do_open(const char *pathname, int flags)
+{
+	struct usb_serial_test	*serial;
+	struct stat		st;
+
+	serial = malloc(sizeof(*serial));
+	if (!serial) {
+		DBG("%s: could not allocate memory\n", __func__);
+		goto err0;
+	}
+
+	serial->fd = open(pathname, flags);
+	if (serial->fd < 0) {
+		DBG("%s: open failed\n", __func__);
+		goto err1;
+	}
+
+	/* Make sure the file is a character device */
+	if (fstat(serial->fd, &st)) {
+		DBG("%s failed to stat %s\n", __func__, pathname);
+		goto err2;
+	}
+	if (!S_ISCHR(st.st_mode)) {
+		DBG("%s: \"%s\" is not character device\n",
+			__func__, pathname);
+		errno = EBADF;
+		goto err2;
+	}
+
+	if (isatty(serial->fd)) {
+		DBG("%s is tty\n", pathname);
+
+		if (tty_init(serial->fd) < 0) {
+			DBG("%s: tty_init failed\n", __func__);
+			goto err2;
+		}
+	}
+
+	return serial;
+
+err2:
+	close(serial->fd);
+err1:
+	free(serial);
+err0:
+	return NULL;
+}
+
 /**
  * do_test - poll, read the data and write it back
  * @serial:	Serial Test Context
  */
 static int do_test(struct usb_serial_test *serial)
 {
-	uint16_t		bytes;
-	int			ret;
+	uint16_t	bytes;
+	int		ret;
 
 	ret = do_poll(serial);
 	if (ret < 0)
@@ -244,18 +260,18 @@ err:
 
 static void usage(char *prog)
 {
-	printf("Usage: %s\n\
-			--tty, -t	tty device to use\n\
-			--size, -s	size of internal buffer\n\
-			--debug, -d	Enables debugging messages\n\
-			--help, -h	this help\n", prog);
+	fprintf(stderr, "Usage: %s\n"
+		"	--file, -f	character device to use\n"
+		"	--size, -s	size of internal buffer\n"
+		"	--debug, -d	Enables debugging messages\n"
+		"	--help, -h	this help\n", prog);
 }
 
 static struct option serial_opts[] = {
 	{
-		.name		= "tty",
+		.name		= "file",
 		.has_arg	= 1,
-		.val		= 't',
+		.val		= 'f',
 	},
 	{
 		.name		= "size",
@@ -276,123 +292,79 @@ static struct option serial_opts[] = {
 int main(int argc, char *argv[])
 {
 	struct usb_serial_test	*serial;
-
 	unsigned		size = 0;
 	int			ret = 0;
-
-	char			*tty = NULL;
+	char			*file = NULL;
 
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "t:s:dh", serial_opts, &optidx);
+		opt = getopt_long(argc, argv, "f:s:dh", serial_opts, &optidx);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
-		case 't':
-			tty = optarg;
+		case 'f':
+			file = optarg;
 			break;
 		case 's':
 			size = atoi(optarg);
-			if (size == 0) {
-				DBG("%s: can't do it with zero length buffer\n",
-						__func__);
-				ret = -EINVAL;
-				goto err0;
-			}
 			break;
 		case 'd':
-			debug = 1;
+			ENABLE_DBG();
 			break;
 		case 'h': /* FALLTHROUGH */
 		default:
 			usage(argv[0]);
-			return 0;
+			return 1;
 		}
 	}
 
-	if (!tty) {
-		DBG("%s: need a tty to open\n", __func__);
-		ret = -EINVAL;
+	if (!file || !size) {
+		fprintf(stderr, "%s%s",
+			file ? "" : "seriald: need a file to open\n",
+			size ? "" : "seriald: need size for the buffer\n");
+		fprintf(stderr, "Try `%s --help' for more information.\n",
+			argv[0]);
+		ret = 1;
 		goto err0;
 	}
 
-	serial = malloc(sizeof(*serial));
+	DBG("%s: opening %s\n", __func__, file);
+
+	serial = do_open(file, O_RDWR | O_NOCTTY);
 	if (!serial) {
-		DBG("%s: unable to allocate memory\n", __func__);
-		ret = -ENOMEM;
+		fprintf(stderr, "%s: failed to open %s: %s\n",
+			argv[0], file, strerror(errno));
+		ret = 1;
 		goto err0;
 	}
-
-	memset(serial, 0x00, sizeof(*serial));
 
 	DBG("%s: buffer size %d\n", __func__, size);
 
 	serial->size = size;
 
-	serial->buf = alloc_buffer(size);
+	serial->buf = malloc(size);
 	if (!serial->buf) {
-		DBG("%s: failed to allocate buffer\n", __func__);
+		fprintf(stderr, "%s: failed to allocate buffer\n", argv[0]);
+		ret = 1;
 		goto err1;
 	}
-
-	DBG("%s: opening %s\n", __func__, tty);
-
-	serial->fd = open(tty, O_RDWR | O_NOCTTY);
-	if (serial->fd < 0) {
-		DBG("%s: could not open %s\n", __func__, tty);
-		goto err2;
-	}
-
-	ret = tty_init(serial);
-	if (ret < 0) {
-		DBG("%s: failed to initialize tty\n", __func__);
-		goto err3;
-	}
-
-	serial->pfd = malloc(sizeof(*serial->pfd));
-	if (!serial->pfd) {
-		DBG("%s: could not allocate pfd\n", __func__);
-		ret = -ENOMEM;
-		goto err4;
-	}
-
-	memset(serial->pfd, 0x00, sizeof(*serial->pfd));
 
 	while (1) {
 		ret = do_test(serial);
 		if (ret < 0) {
-			DBG("%s test failed\n", __func__);
-			goto err5;
+			fprintf(stderr, "%s: test failed: %s\n",
+				__func__, strerror(errno));
+			break;
 		}
 	}
 
-	free(serial->pfd);
-	free(serial->term);
-	close(serial->fd);
 	free(serial->buf);
-	free(serial);
-
-	return 0;
-
-err5:
-	free(serial->pfd);
-
-err4:
-	free(serial->term);
-
-err3:
-	close(serial->fd);
-
-err2:
-	free(serial->buf);
-
 err1:
+	close(serial->fd);
 	free(serial);
-
 err0:
 	return ret;
 }
-
