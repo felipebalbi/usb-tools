@@ -41,7 +41,7 @@ cleware:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
 
 serialc:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
 
 msc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c

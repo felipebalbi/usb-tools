@@ -20,8 +20,6 @@
  * along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libusb-1.0/libusb.h>
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -33,10 +31,14 @@
 #include <errno.h>
 #include <getopt.h>
 #include <malloc.h>
+#include <dirent.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+
+#include <sys/ioctl.h>
+#include <linux/usbdevice_fs.h>
 
 static unsigned debug;
 
@@ -50,6 +52,26 @@ static struct timeval		end;
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 #define TIMEOUT		2000	/* ms */
+#define	MAX_USBFS_BUFFER_SIZE	16384
+
+/* #include <linux/usb_ch9.h> */
+
+struct usb_device_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u16 bcdUSB;
+	__u8  bDeviceClass;
+	__u8  bDeviceSubClass;
+	__u8  bDeviceProtocol;
+	__u8  bMaxPacketSize0;
+	__u16 idVendor;
+	__u16 idProduct;
+	__u16 bcdDevice;
+	__u8  iManufacturer;
+	__u8  iProduct;
+	__u8  iSerialNumber;
+	__u8  bNumConfigurations;
+} __attribute__ ((packed));
 
 /**
  * usb_serial_test - USB u_serial Test Context
@@ -65,15 +87,13 @@ static struct timeval		end;
  * @rxbuf:		rx buffer
  */
 struct usb_serial_test {
-	libusb_device_handle	*udevh;
+	int			udevh;
 	uint64_t		transferred;
 
 	float			read_tput;
 	float			write_tput;
 
 	unsigned		size;
-	unsigned		vid;
-	unsigned		pid;
 
 	int			interface_num;
 	int			alt_setting;
@@ -175,21 +195,24 @@ err0:
 static int find_and_claim_interface(struct usb_serial_test *serial)
 {
 	int			ret;
+	struct usbdevfs_setinterface setintf;
 
 	/* FIXME for now this will only work with g_nokia, but we will
 	 * extend this later in order to work with any u_serial
 	 * gadget driver
 	 */
 
-	ret = libusb_claim_interface(serial->udevh, serial->interface_num);
+	ret = ioctl(serial->udevh, USBDEVFS_CLAIMINTERFACE,
+			&serial->interface_num);
 	if (ret < 0) {
 		DBG("%s: couldn't claim interface\n", __func__);
 		goto err0;
 	}
 
-	ret = libusb_set_interface_alt_setting(serial->udevh,
-						serial->interface_num,
-						serial->alt_setting);
+	setintf.interface = serial->interface_num;
+	setintf.altsetting = serial->alt_setting;
+
+	ret = ioctl(serial->udevh, USBDEVFS_SETINTERFACE, &setintf);
 	if (ret < 0) {
 		DBG("%s: couldn't set altsetting\n", __func__);
 		goto err1;
@@ -198,7 +221,7 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 	return 0;
 
 err1:
-	libusb_release_interface(serial->udevh, serial->interface_num);
+	ioctl(serial->udevh, USBDEVFS_RELEASEINTERFACE, &serial->interface_num);
 
 err0:
 	return ret;
@@ -206,7 +229,7 @@ err0:
 
 static void release_interface(struct usb_serial_test *serial)
 {
-	libusb_release_interface(serial->udevh, serial->interface_num);
+	ioctl(serial->udevh, USBDEVFS_RELEASEINTERFACE, &serial->interface_num);
 }
 
 static float throughput(struct timeval *start, struct timeval *end, size_t size)
@@ -226,23 +249,31 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
  */
 static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
-	int			transferred = 0;
-	int			done = 0;
-	int			ret;
+	int				transferred = 0;
+	int				done = 0;
+	int				ret;
+	struct usbdevfs_bulktransfer	bulk;
 
 	serial->txbuf[0] = bytes >> 8;
 	serial->txbuf[1] = (bytes << 8) >> 8;
 
 	while (done < bytes) {
+		bulk.ep = serial->eptx;
+		bulk.len = bytes - done;
+		if (bulk.len > MAX_USBFS_BUFFER_SIZE)
+			bulk.len = MAX_USBFS_BUFFER_SIZE;
+		bulk.timeout = TIMEOUT;
+		bulk.data = serial->txbuf + done;
+
 		gettimeofday(&start, NULL);
-		ret = libusb_bulk_transfer(serial->udevh, serial->eptx,
-				serial->txbuf + done, bytes - done,
-				&transferred, TIMEOUT);
+
+		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
 		if (ret < 0) {
 			DBG("%s: failed to send data\n", __func__);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
+		transferred = ret;
 
 		serial->write_tput = throughput(&start, &end, transferred);
 		serial->transferred += transferred;
@@ -262,20 +293,28 @@ err:
  */
 static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 {
-	int			transferred = 0;
-	int			done = 0;
-	int			ret;
+	int				transferred = 0;
+	int				done = 0;
+	int				ret;
+	struct usbdevfs_bulktransfer	bulk;
 
 	while (done < bytes) {
+		bulk.ep = serial->eprx;
+		bulk.len = bytes - done;
+		if (bulk.len > MAX_USBFS_BUFFER_SIZE)
+			bulk.len = MAX_USBFS_BUFFER_SIZE;
+		bulk.timeout = TIMEOUT;
+		bulk.data = (unsigned char *)serial->rxbuf + done;
+
 		gettimeofday(&start, NULL);
-		ret = libusb_bulk_transfer(serial->udevh, serial->eprx,
-				serial->rxbuf + done, bytes - done,
-				&transferred, TIMEOUT);
+
+		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
 		if (ret < 0) {
 			DBG("%s: failed receiving %d/%d bytes\n", __func__, done, bytes);
 			goto err;
 		}
 		gettimeofday(&end, NULL);
+		transferred = ret;
 
 		serial->read_tput = throughput(&start, &end, transferred);
 		done += transferred;
@@ -333,18 +372,74 @@ err:
 	return ret;
 }
 
+static int open_with_vid_pid(int vid, int pid)
+{
+	DIR				*dir, *subdir;
+	struct				dirent *ent, *subent;
+	struct usb_device_descriptor	desc;
+	char				path[22];
+	int				fd = -1;
+
+	dir = opendir("/dev/bus/usb");
+	if (!dir) {
+		DBG("%s: opendir failed\n", __func__);
+		return -1;
+	}
+
+	while ((ent = readdir(dir))) {
+		if (ent->d_name[0] == '.')
+			continue;
+
+		sprintf(path, "/dev/bus/usb/%s", ent->d_name);
+
+		subdir = opendir(path);
+		if (!subdir)
+			continue;
+
+		while ((subent = readdir(subdir))) {
+			if (subent->d_name[0] == '.')
+				continue;
+
+			sprintf(path, "/dev/bus/usb/%s/%s",
+				ent->d_name, subent->d_name);
+
+			fd = open(path, O_RDWR);
+			if (fd < 0)
+				continue;
+
+			if ((read(fd, &desc, sizeof desc) == sizeof desc)
+			&& (desc.idVendor == vid && desc.idProduct == pid)) {
+				DBG("%s: %s matches vid %x pid %x\n",
+					__func__, path, vid, pid);
+				closedir(subdir);
+				goto ret;
+			}
+
+			close(fd);
+		}
+
+		closedir(subdir);
+	}
+
+	fd = -1;
+ret:
+	closedir(dir);
+
+	return fd;
+}
+
 static void usage(char *prog)
 {
-	printf("Usage: %s\n\
-			--vid, -v	USB Vendor ID\n\
-			--pid, -p	USB Product ID\n\
-			--inum, -i	interface number\n\
-			--alt, -a	alternate setting\n\
-			--rxep, -r	rx endpoint number\n\
-			--txep, -t	tx endpoint number\n\
-			--size, -s	Internal buffer size\n\
-			--debug, -d	Enables debugging messages\n\
-			--help, -h	This help\n", prog);
+	fprintf(stderr, "Usage: %s\n"
+			"\t--vid, -v       USB Vendor ID\n"
+			"\t--pid, -p       USB Product ID\n"
+			"\t--inum, -i	interface number\n"
+			"\t--alt, -a	alternate setting\n"
+			"\t--rxep, -r	rx endpoint number\n"
+			"\t--txep, -t	tx endpoint number\n"
+			"\t--size, -s	Internal buffer size\n"
+			"\t--debug, -d	Enables debugging messages\n"
+			"\t--help, -h	This help\n", prog);
 }
 
 static struct option serial_opts[] = {
@@ -396,7 +491,6 @@ static struct option serial_opts[] = {
 
 int main(int argc, char *argv[])
 {
-	libusb_context		*context;
 	struct usb_serial_test	*serial;
 	unsigned		size = 0;
 	int			if_num = 0;
@@ -404,8 +498,8 @@ int main(int argc, char *argv[])
 	uint8_t			eprx = 0;
 	uint8_t			eptx = 0;
 	int			ret = 0;
-	unsigned		vid = 0xffff;
-	unsigned		pid = 0xffff;
+	unsigned		vid = 0;
+	unsigned		pid = 0;
 
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
@@ -449,13 +543,20 @@ int main(int argc, char *argv[])
 		case 'h': /* FALLTHROUGH */
 		default:
 			usage(argv[0]);
-			return 0;
+			return 1;
 		}
+	}
+
+	if (!vid || !pid) {
+		fprintf(stderr, "%s: missing arguments\n"
+			"Try `%s --help' for more information\n",
+			argv[0], argv[0]);
+		return 1;
 	}
 
 	serial = malloc(sizeof(*serial));
 	if (!serial) {
-		DBG("%s: unable to allocate memory\n", __func__);
+		fprintf(stderr, "%s: unable to allocate memory\n", argv[0]);
 		ret = -ENOMEM;
 		goto err0;
 	}
@@ -463,8 +564,6 @@ int main(int argc, char *argv[])
 	memset(serial, 0x00, sizeof(*serial));
 
 	serial->size = size;
-	serial->vid = vid;
-	serial->pid = pid;
 	serial->eprx = eprx;
 	serial->eptx = eptx;
 	serial->interface_num = if_num;
@@ -472,17 +571,14 @@ int main(int argc, char *argv[])
 
 	ret = alloc_and_init_buffer(serial);
 	if (ret < 0) {
-		DBG("%s: failed to allocate buffers\n", __func__);
+		fprintf(stderr, "%s: failed to allocate buffers\n", argv[0]);
 		goto err1;
 	}
 
-	/* initialize libusb */
-	libusb_init(&context);
-
-	serial->udevh = libusb_open_device_with_vid_pid(context, vid, pid);
-	if (!serial->udevh) {
-		DBG("%s: couldn't find device V%02x P%02x\n", __func__,
-				vid, pid);
+	serial->udevh = open_with_vid_pid(vid, pid);
+	if (serial->udevh < 0) {
+		fprintf(stderr, "%s: open failed %s\n",
+			argv[0], strerror(errno));
 		goto err2;
 	}
 
@@ -491,7 +587,8 @@ int main(int argc, char *argv[])
 	 */
 	ret = find_and_claim_interface(serial);
 	if (ret < 0) {
-		DBG("%s: unable to claim interface\n", __func__);
+		fprintf(stderr, "%s: unable to claim interface: %s\n",
+			argv[0], strerror(errno));
 		goto err2;
 	}
 
@@ -511,7 +608,8 @@ int main(int argc, char *argv[])
 
 		ret = do_test(serial, n);
 		if (ret < 0) {
-			DBG("%s: test failed\n", __func__);
+			fprintf(stderr, "%s: test failed: %s\n",
+				argv[0], strerror(errno));
 			goto err3;
 		}
 
@@ -536,7 +634,7 @@ int main(int argc, char *argv[])
 	}
 
 	release_interface(serial);
-	libusb_exit(context);
+	close(serial->udevh);
 	free(serial->rxbuf);
 	free(serial->txbuf);
 	free(serial);
@@ -547,8 +645,9 @@ err3:
 	release_interface(serial);
 
 err2:
-	libusb_exit(context);
+	close(serial->udevh);
 	free(serial->rxbuf);
+	free(serial->txbuf);
 
 err1:
 	free(serial);
