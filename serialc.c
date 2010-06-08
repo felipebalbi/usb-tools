@@ -280,6 +280,18 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 		done += transferred;
 	}
 
+	if (!(bytes % 512)) {
+		bulk.ep = serial->eptx;
+		bulk.len = 0;
+		bulk.timeout = TIMEOUT;
+		bulk.data = serial->txbuf + done;
+		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
+		if (ret < 0) {
+			DBG("%s: failed to send data\n", __func__);
+			goto err;
+		}
+	}
+
 	return 0;
 
 err:
