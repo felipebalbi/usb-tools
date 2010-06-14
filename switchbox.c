@@ -44,6 +44,9 @@ static unsigned debug;
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
+#define SWITCHBOX_CMD_READ	0x80
+#define SWITCHBOX_CMD_WRITE	0xc0
+
 /**
  * struct switchbox - Switchbox representation
  * @term:		terminal settings
@@ -94,6 +97,81 @@ err1:
 
 err0:
 	return ret;
+}
+
+/**
+ * switchbox_read - issue a read command to switchbox
+ * @box:	the box we want to read from
+ */
+static int switchbox_read(struct switchbox *box)
+{
+	struct pollfd		pfd;
+	int			ret;
+	uint8_t			cmd;
+
+	cmd = SWITCHBOX_CMD_READ;
+
+	ret = write(box->fd, &cmd, 1);
+	if (ret < 0) {
+		DBG("%s: failed to send READ command\n", __func__);
+		return ret;
+	}
+
+	/* start polling for data available */
+	pfd.fd = box->fd;
+	pfd.events = POLLIN;
+	pfd.revents = 0;
+
+	ret = poll(&pfd, 1, -1);
+	if (ret <= 0) {
+		DBG("%s: failed polling for data available\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = read(box->fd, &box->msg, 1);
+	if (ret < 0) {
+		DBG("%s: failed to read status\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * switchbox_write - issoe a write command to switchbox
+ * @box:	the box we want to write to
+ */
+static int switchbox_write(struct switchbox *box)
+{
+	struct pollfd		pfd;
+	int			ret;
+	uint8_t			cmd;
+
+	cmd = SWITCHBOX_CMD_WRITE;
+
+	ret = write(box->fd, &cmd, 1);
+	if (ret < 0) {
+		DBG("%s: failed to send WRITE command\n", __func__);
+		return ret;
+	}
+
+	pfd.fd = box->fd;
+	pfd.events = POLLOUT;
+	pfd.revents = 0;
+
+	ret = poll(&pfd, 1, -1);
+	if (ret <= 0) {
+		DBG("%s: failed polling for write\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = write(box->fd, &box->msg, 1);
+	if (ret < 0) {
+		DBG("%s: failed writting message\n", __func__);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void usage(char *prog)
@@ -150,8 +228,6 @@ int main(int argc, char *argv[])
 	int			optidx = 0;
 	int			opt;
 
-	uint8_t			header = 0xc0;
-
 	while (1) {
 		opt = getopt_long(argc, argv, "t:n:pudh", switchbox_opts, &optidx);
 		if (opt == -1)
@@ -207,20 +283,25 @@ int main(int argc, char *argv[])
 		goto out2;
 	}
 
-	box->msg |= power << number;
-	box->msg |= usb << (number + 4);
-
-	ret = write(box->fd, &header, 1);
+	ret = switchbox_read(box);
 	if (ret < 0) {
-		DBG("%s: failed writting header\n", __func__);
+		DBG("%s: failed to read\n", __func__);
 		goto out2;
 	}
 
-	ret = write(box->fd, &box->msg, 1);
-	if (ret < 0) {
-		DBG("%s: failed writting command\n", __func__);
-		goto out2;
-	}
+	if (power)
+		box->msg |= (1 << number);
+	else
+		box->msg &= ~(1 << number);
+
+	if (usb)
+		box->msg |= (1 << (number + 4));
+	else
+		box->msg &= ~(1 << (number + 4));
+
+	ret = switchbox_write(box);
+	if (ret < 0)
+		DBG("%s: failed to write\n", __func__);
 
 out2:
 	close(box->fd);
