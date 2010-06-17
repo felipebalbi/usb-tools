@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
 	libusb_device_handle	*udevh;
 	libusb_device		**list;
 
-	unsigned		port = 0;
+	unsigned		port = 1;
 	unsigned		iSerial = 0;
 	unsigned		list_devs = 0;
 
