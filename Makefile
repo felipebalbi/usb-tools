@@ -36,13 +36,19 @@ Q             = $(V:1=)
 QUIET_CC      = $(Q:@=@echo    '     CC       '$@;)
 QUIET_CLEAN   = $(Q:@=@echo    '     CLEAN    '$@;)
 
-all: cleware msc serialc seriald testusb
+all: cleware msc serialc seriald testusb acmc acmd
 
 cleware:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
 
 serialc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+
+acmc:
+	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+
+acmd:
+	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
 
 msc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
@@ -54,5 +60,5 @@ testusb:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD) -o $@ $@.c
 
 clean:
-	$(QUIET_CLEAN) rm -f cleware msc serialc seriald testusb
+	$(QUIET_CLEAN) rm -f cleware msc serialc seriald testusb acmc acmd
 
