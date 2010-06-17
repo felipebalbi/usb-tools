@@ -38,25 +38,35 @@
 
 #define CLEWARE_VENDOR_ID	0x0d50
 #define CLEWARE_USB_SWITCH	0x0008
+#define CLEWARE_USB_SWITCH8	0x0030
+
+#define CLEWARE_TYPE_SWITCH	0x00
+#define CLEWARE_TYPE_CONTACT	0x03
 
 struct usb_device_id {
 	unsigned		idVendor;
 	unsigned		idProduct;
 	unsigned		num_ports;
+	unsigned		type;
 };
 
-#define USB_DEVICE(v, p, n)		\
+#define USB_DEVICE(v, p, n, t)		\
 {					\
 	.idVendor		= v,	\
 	.idProduct		= p,	\
-	.num_ports		= n	\
+	.num_ports		= n,	\
+	.type			= t	\
 }
 
 static struct usb_device_id cleware_id[] = {
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 4),
+	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 4,
+			CLEWARE_TYPE_SWITCH),
+	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH8, 8,
+			CLEWARE_TYPE_CONTACT),
 };
 
 static int num_ports;
+static unsigned type;
 static int debug;
 
 #define DBG(fmt, args...)			\
@@ -87,6 +97,7 @@ static int match_device_id(libusb_device *udev)
 				(desc.idProduct == cleware_id[i].idProduct)) {
 			match = 1;
 			num_ports = cleware_id[i].num_ports;
+			type = cleware_id[i].type;
 			DBG("%s: matched device %04x:%04x num_ports %d\n",__func__,
 					desc.idVendor, desc.idProduct, num_ports);
 		}
@@ -319,14 +330,30 @@ static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
 
 static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
-	unsigned char		data[3];
+	unsigned char		data[5];
 
-	data[0] = 0x00;
-	data[1] = port + 0x10;
-	data[2] = on & 0x01;
+	data[0] = type;
 
-	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-			data, sizeof(data), TIMEOUT);
+	if (type == CLEWARE_TYPE_SWITCH) {
+		data[0] = 0x00;
+		data[1] = port + 0x10;
+		data[2] = on & 0x01;
+
+		return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+				data, 3, TIMEOUT);
+
+	} else if (type == CLEWARE_TYPE_CONTACT) {
+		data[1] = 0x00;
+		data[2] = on ? (1 << port) : 0x00;
+		data[3] = 0x00;
+		data[4] = (1 << port);
+
+		return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+				data, 5, TIMEOUT);
+	} else {
+		DBG("%s: unsupported type\n", __func__);
+		return -EINVAL;
+	}
 }
 
 static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
