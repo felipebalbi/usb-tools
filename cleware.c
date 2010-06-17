@@ -328,28 +328,38 @@ static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
 			data, sizeof(data), TIMEOUT);
 }
 
-static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
+static inline int set_switch8(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	unsigned char		data[5];
 
 	data[0] = type;
+	data[1] = 0x00;
+	data[2] = on ? (1 << port) : 0x00;
+	data[3] = 0x00;
+	data[4] = (1 << port);
 
+	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+			data, sizeof(data), TIMEOUT);
+}
+
+static inline int set_switch4(libusb_device_handle *udevh, unsigned port, unsigned on)
+{
+	unsigned char		data[3];
+
+	data[0] = type;
+	data[1] = port + 0x10;
+	data[2] = on & 0x01;
+
+	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
+			data, 3, TIMEOUT);
+}
+
+static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
+{
 	if (type == CLEWARE_TYPE_SWITCH) {
-		data[0] = 0x00;
-		data[1] = port + 0x10;
-		data[2] = on & 0x01;
-
-		return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-				data, 3, TIMEOUT);
-
+		return set_switch4(udevh, port, on);
 	} else if (type == CLEWARE_TYPE_CONTACT) {
-		data[1] = 0x00;
-		data[2] = on ? (1 << port) : 0x00;
-		data[3] = 0x00;
-		data[4] = (1 << port);
-
-		return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-				data, 5, TIMEOUT);
+		return set_switch8(udevh, port, on);
 	} else {
 		DBG("%s: unsupported type\n", __func__);
 		return -EINVAL;
