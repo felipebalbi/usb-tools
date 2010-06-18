@@ -21,6 +21,7 @@
  */
 
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -256,6 +257,8 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 
 	serial->txbuf[0] = bytes >> 8;
 	serial->txbuf[1] = (bytes << 8) >> 8;
+	if (bytes > 2)
+		serial->txbuf[bytes-1] = 0xff;
 
 	while (done < bytes) {
 		bulk.ep = serial->eptx;
@@ -604,7 +607,7 @@ int main(int argc, char *argv[])
 		goto err2;
 	}
 
-	srand(1024);
+	srandom(time(NULL));
 
 	while (1) {
 		float		transferred = 0;
