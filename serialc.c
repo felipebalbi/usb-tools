@@ -562,6 +562,11 @@ static struct option serial_opts[] = {
 		.val		= 's',
 	},
 	{
+		.name		= "fixed",
+		.has_arg	= 1,
+		.val		= 'f',
+	},
+	{
 		.name		= "debug",
 		.val		= 'd',
 	},
@@ -576,6 +581,7 @@ int main(int argc, char *argv[])
 {
 	struct usb_serial_test	*serial;
 	unsigned		size = 0;
+	uint8_t			fixed = 0;
 	int			if_num = 0;
 	int			alt_set = 0;
 	uint8_t			eprx = 0;
@@ -598,7 +604,7 @@ int main(int argc, char *argv[])
 		int		optidx = 0;
 		int		opt;
 
-	opt = getopt_long(argc, argv, "v:p:s:i:a:r:t:dh", serial_opts, &optidx);
+	opt = getopt_long(argc, argv, "v:p:s:i:a:r:t:dhf", serial_opts, &optidx);
 	if (opt < 0)
 			break;
 
@@ -629,6 +635,9 @@ int main(int argc, char *argv[])
 				ret = -EINVAL;
 				goto err0;
 			}
+			break;
+		case 'f':
+			fixed = 1;
 			break;
 		case 'd':
 			debug = 1;
@@ -688,7 +697,8 @@ int main(int argc, char *argv[])
 		goto err2;
 	}
 
-	srandom(time(NULL));
+	if (!fixed)
+		srandom(time(NULL));
 
 	printf("\n");
 	do {
@@ -697,9 +707,13 @@ int main(int argc, char *argv[])
 		unsigned	n;
 		char		*unit = NULL;
 
-		/* We want packet size to be in range [2 , serial->size],
-		*  as first two bytes are holding the packet size */
-		n = random() % (serial->size - 1) + 2;
+		if (!fixed) {
+			/* We want packet size to be in range [2 , serial->size],
+			*  as first two bytes are holding the packet size */
+			n = random() % (serial->size - 1) + 2;
+		} else {
+			n = size;
+		}
 
 		DBG("%s sending %d bytes\n", __func__, n);
 
