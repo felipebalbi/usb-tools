@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -46,6 +47,8 @@ static unsigned debug;
 /* for measuring throughtput */
 static struct timeval		start;
 static struct timeval		end;
+
+static int alive = 1;
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -120,6 +123,16 @@ static char	*units[] = {
 	"Z",
 	"Y",
 };
+
+/**
+ * signal_exit - set alive to 0
+ * @sig:	Signal caught
+ */
+void signal_exit(int sig)
+{
+
+	alive = 0;
+}
 
 /**
  * init_buffer - initializes our TX buffer with known data
@@ -233,6 +246,12 @@ static void release_interface(struct usb_serial_test *serial)
 	ioctl(serial->udevh, USBDEVFS_RELEASEINTERFACE, &serial->interface_num);
 }
 
+/**
+ * throughtput - Calculate throughput
+ * @start:	Start time
+ * @end:	End time
+ * @size:	Size of data transfered
+ */
 static float throughput(struct timeval *start, struct timeval *end, size_t size)
 {
 	int64_t			diff;
@@ -515,6 +534,16 @@ int main(int argc, char *argv[])
 	int			ret = 0;
 	unsigned		vid = 0;
 	unsigned		pid = 0;
+	struct sigaction	sa;
+
+	sa.sa_handler = signal_exit;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		printf("failed to handle signal\n");
+
+	(void)	signal(SIGINT, signal_exit);
 
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
@@ -609,7 +638,7 @@ int main(int argc, char *argv[])
 
 	srandom(time(NULL));
 
-	while (1) {
+	do {
 		float		transferred = 0;
 		int		i;
 		unsigned	n;
@@ -646,7 +675,8 @@ int main(int argc, char *argv[])
 
 			fflush(stdout);
 		}
-	}
+	} while (alive);
+	printf("\n");
 
 	release_interface(serial);
 	close(serial->udevh);
