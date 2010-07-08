@@ -54,9 +54,10 @@ static int alive = 1;
 	if (debug)					\
 		printf(fmt, ## args)
 
-#define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define TIMEOUT		2000	/* ms */
+#define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
+#define TIMEOUT			2000	/* ms */
 #define	MAX_USBFS_BUFFER_SIZE	16384
+#define MIN_TPUT		0xffffffff
 
 /* #include <linux/usb_ch9.h> */
 
@@ -82,6 +83,13 @@ struct usb_device_descriptor {
  * @transferred:	amount of data transferred so far
  * @read_tput:		read throughput
  * @write_tput:		write throughput
+ * @read_maxtput:	read max throughput
+ * @write_maxtput:	write max throughput
+ * @read_mintput:	read min throughput
+ * @write_maxtput:	write min throughput
+ * @read_avgtput:	read average throughput
+ * @write_avgtput:	write average throughput
+ * @size		size of the serial buffer
  * @interface_num:	interface number
  * @alt_setting:	alternate setting
  * @eprx:		rx endpoint number
@@ -96,6 +104,15 @@ struct usb_serial_test {
 
 	float			read_tput;
 	float			write_tput;
+
+	float			read_maxtput;
+	float			write_maxtput;
+
+	float			read_mintput;
+	float			write_mintput;
+
+	float			read_avgtput;
+	float			write_avgtput;
 
 	unsigned		size;
 
@@ -269,6 +286,7 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
  */
 static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 {
+	static unsigned char		st;
 	int				transferred = 0;
 	int				done = 0;
 	int				ret;
@@ -302,6 +320,22 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 		done += transferred;
 	}
 
+	/* weighted average (10%-90%) */
+	if (!st) {
+		st = 1;
+		serial->write_avgtput = serial->write_tput;
+	} else {
+		/* skip when writing zero bytes */
+		if (serial->write_tput)
+			serial->write_avgtput = (0.1 * serial->write_tput + 0.9 * serial->write_avgtput);
+	}
+
+	if (serial->write_tput > serial->write_maxtput)
+		serial->write_maxtput = serial->write_tput;
+
+	if (serial->write_tput < serial->write_mintput)
+		serial->write_mintput = serial->write_tput;
+
 	if (!(bytes % 512)) {
 		bulk.ep = serial->eptx;
 		bulk.len = 0;
@@ -327,6 +361,7 @@ err:
  */
 static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 {
+	static unsigned char		st;
 	int				transferred = 0;
 	int				done = 0;
 	int				ret;
@@ -353,6 +388,20 @@ static int do_read(struct usb_serial_test *serial, uint16_t bytes)
 		serial->read_tput = throughput(&start, &end, transferred);
 		done += transferred;
 	}
+
+	/* weighted average (10%-90%) */
+	if (!st) {
+		st = 1;
+		serial->read_avgtput = serial->read_tput;
+	} else {
+		if (serial->read_tput)
+			serial->read_avgtput = (0.1 * serial->read_tput + 0.9 * serial->read_avgtput);
+	}
+	if (serial->read_tput > serial->read_maxtput)
+		serial->read_maxtput = serial->read_tput;
+
+	if (serial->read_tput < serial->read_mintput)
+		serial->read_mintput = serial->read_tput;
 
 	return 0;
 
@@ -613,6 +662,9 @@ int main(int argc, char *argv[])
 	serial->interface_num = if_num;
 	serial->alt_setting = alt_set;
 
+	serial->write_mintput = MIN_TPUT;
+	serial->read_mintput = MIN_TPUT;
+
 	ret = alloc_and_init_buffer(serial);
 	if (ret < 0) {
 		fprintf(stderr, "%s: failed to allocate buffers\n", argv[0]);
@@ -638,6 +690,7 @@ int main(int argc, char *argv[])
 
 	srandom(time(NULL));
 
+	printf("\n");
 	do {
 		float		transferred = 0;
 		int		i;
@@ -669,14 +722,22 @@ int main(int argc, char *argv[])
 		}
 
 		if (debug == 0) {
-			printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\r",
+			printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\n",
 					vid, pid, transferred, unit, transferred > 1 ? "s" : "",
 					serial->read_tput, serial->write_tput);
 
+			printf("[ read min: %10.02f kB/s - max:  %10.02f kB/s - avg: %10.02f kB/s ]\n",
+				serial->read_mintput, serial->read_maxtput, serial->read_avgtput);
+
+			printf("[ write min: %10.02f kB/s - max: %10.02f kB/s - avg: %10.02f kB/s ]\n",
+				serial->write_mintput, serial->write_maxtput, serial->write_avgtput);
+
+			printf("\033[3A");
 			fflush(stdout);
 		}
 	} while (alive);
-	printf("\n");
+
+	printf("\n\n\n");
 
 	release_interface(serial);
 	close(serial->udevh);
