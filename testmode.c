@@ -63,6 +63,8 @@ static unsigned debug;
 #define TEST_FORCE_HS			0xc0
 #define TEST_FORCE_FS			0xc1
 
+#define TEST_BAD_DESCRIPTOR		0xff
+
 static struct option testmode_opts[] = {
 	OPTION("debug",		0, 'd'),
 	OPTION("help",		0, 'h'),
@@ -71,10 +73,52 @@ static struct option testmode_opts[] = {
 	{  }	/* Terminating entry */
 };
 
+static int bad_descriptor_test(libusb_device_handle *udevh)
+{
+	struct libusb_device_descriptor desc;
+	int			ret;
+	uint8_t			buf[1024];
+
+	memset(buf, 0x00, sizeof(buf));
+
+	ret = libusb_get_descriptor(udevh, 0xcc, 0, buf, sizeof(buf));
+	if (ret >= 0) {
+		DBG("this should have failed\n");
+		return -EINVAL;
+	}
+
+	ret = libusb_get_device_descriptor(libusb_get_device(udevh),
+			&desc);
+	if (ret < 0) {
+		DBG("failed to get descriptor\n");
+		return ret;
+	}
+
+	ret = libusb_reset_device(udevh);
+	if (ret < 0)
+		DBG("failed to reset device\n");
+
+	return ret;
+}
+
+static int do_test(libusb_device_handle *udevh, int test)
+{
+	if (test == TEST_BAD_DESCRIPTOR)
+		return bad_descriptor_test(udevh);
+
+	return libusb_control_transfer(udevh,
+			LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_STANDARD,
+			LIBUSB_REQUEST_SET_FEATURE,
+			TEST_MODE, (test << 8), NULL, 0, DEFAULT_TIMEOUT);
+}
+
 static int start_testmode(libusb_device_handle *udevh,
 		char *testmode)
 {
 	int			test = 0;
+	int			ret = -EINVAL;
+
+	printf("Test \"%s\":        ", testmode);
 
 	if (!strncmp(testmode, "test_j", 6))
 		test = TEST_J;
@@ -94,10 +138,16 @@ static int start_testmode(libusb_device_handle *udevh,
 	if (!strncmp(testmode, "test_force_fs", 13))
 		test = TEST_FORCE_FS;
 
-	return libusb_control_transfer(udevh,
-			LIBUSB_RECIPIENT_DEVICE | LIBUSB_REQUEST_TYPE_STANDARD,
-			LIBUSB_REQUEST_SET_FEATURE,
-			TEST_MODE, (test << 8), NULL, 0, DEFAULT_TIMEOUT);
+	if (!strncmp(testmode, "bad_descriptor", 14))
+		test = TEST_BAD_DESCRIPTOR;
+
+	ret = do_test(udevh, test);
+	if (ret < 0)
+		printf("failed\n");
+	else
+		printf("success\n");
+
+	return ret;
 }
 
 static void usage(char *cmd)
