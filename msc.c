@@ -235,7 +235,6 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 	}
 
 	if (!debug) {
-		printf("\n");
 		printf("\rtest %d: sent %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ... ",
 				test, transferred, unit, transferred > 1 ? "s" : " ",
 				msc->read_tput, msc->write_tput);
