@@ -182,7 +182,11 @@ static void usage(char *prog)
 			--power, -p	enable power\n\
 			--usb, -u	enable usb\n\
 			--debug, -d	Enables debugging messages\n\
-			--help, -h	this help\n", prog);
+			--help, -h	this help\n\
+			\n\
+		Several port numbers can be set simultaneously e.g.:\n\
+		%s -n0 -n1 -n2 -n3 -pu\n\
+		The above will turn on all power and usb ports\n", prog, prog);
 }
 
 static struct option switchbox_opts[] = {
@@ -238,7 +242,7 @@ int main(int argc, char *argv[])
 			tty = optarg;
 			break;
 		case 'n':
-			number = atoi(optarg);
+			number |= (1 << atoi(optarg));
 			break;
 		case 'u':
 			usb = 1;
@@ -290,14 +294,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (power)
-		box->msg |= (1 << number);
+		box->msg |= number;
 	else
-		box->msg &= ~(1 << number);
+		box->msg &= ~(number);
 
 	if (usb)
-		box->msg |= (1 << (number + 4));
+		box->msg |= (number << 4);
 	else
-		box->msg &= ~(1 << (number + 4));
+		box->msg &= ~(number << 4);
 
 	ret = switchbox_write(box);
 	if (ret < 0)
