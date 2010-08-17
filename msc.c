@@ -1878,8 +1878,6 @@ int main(int argc, char *argv[])
 		goto err3;
 	}
 
-	printf("\n");
-
 	close(msc->fd);
 	free(msc->txbuf);
 	free(msc->rxbuf);
