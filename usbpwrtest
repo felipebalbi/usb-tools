@@ -1,0 +1,224 @@
+#!/bin/sh
+
+##
+# usbpwrtest - tests how the device sleeps with usb
+#
+# Copyright (C) 2010 Nokia Corporation
+#
+# This file is part of the USB Verification Tools Project
+#
+# USB Tools is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public Liicense as published by
+# the Free Software Foundation, either version 3 of the license, or
+# (at your option) any later version.
+#
+# USB Tools is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
+##
+#
+# Run after bootup to minimal shell without the cable connected
+#
+##
+
+NTESTS=0	# Number of tests
+TESTN=0		# Current test
+TEST_ENUM=0
+STATUS=0
+STRSUCCESS="Successfully put all powerdomains to target state"
+
+printk_level=0
+mount_dbgfs=0
+
+trap recover 1 2 3 6
+
+###############################################################################
+# General functions
+
+recover() {
+	echo 0 >/sys/kernel/debug/pm_debug/wakeup_timer_milliseconds
+	if [ $mount_dbgfs ]; then
+		umount /sys/kernel/debug
+	fi
+	echo $printk_level >/proc/sys/kernel/printk
+	exit 0
+}
+
+print_help() {
+	echo -e "Usage: $0 [OPTION]\n"\
+		"  -e, --test-enumerated\tTest sleep with enumerated device\n"\
+		"  -h, --help		\tPrint this message"
+}
+
+test_sleep() {
+	echo mem >/sys/power/state
+	dmesg |tail|grep "$STRSUCCESS" >/dev/null
+	STATUS=$?
+}
+
+print_status() {
+	if [ $STATUS -eq 0 ]; then
+		echo OK
+	else
+		echo FAIL
+	fi
+}
+
+verify_regulators () {
+	cat /sys/class/regulator/regulator.[2-4]/state|grep enabled >/dev/null
+	if [ $? -eq 1 ]; then
+		STATUS=0
+	else
+		STATUS=1
+	fi
+}
+
+###############################################################################
+#
+# The tests
+#
+
+run_bootup_tests() {
+	#######################################################################
+	# First make sure the regulators are disabled
+	echo -en "regulators are off..\t\t\t"
+	verify_regulators
+	print_status
+
+	#######################################################################
+	# 1, sleep after bootup
+	echo -en "[1/$NTESTS] sleep after bootup..\t\t"
+
+	test_sleep
+	print_status
+
+	#######################################################################
+	# 2, sleep with a gadget
+	echo -en "[2/$NTESTS] sleep with a gadget..\t\t"
+	modprobe g_nokia
+	if [ $? -gt 0 ]; then
+		echo "modprobe failed"
+		recover
+	fi
+
+	test_sleep
+	print_status
+}
+
+#######################################################################
+# 3, charger
+charger() {
+	while [ 1 ]; do
+		if [ $(cat /sys/class/power_supply/usb/type) = "Mains" ]
+		then
+			break
+		else
+			echo -en "plugin the charger..\r"
+			sleep 1;
+		fi
+	done
+
+	echo -en "[$TESTN/$NTESTS] sleep with charger..\t\t"
+
+	test_sleep
+	print_status
+}
+
+#######################################################################
+# 4, enumerated device. DEBUG ONLY
+enumerated() {
+	while [ 1 ]; do
+		if [ $(cat /sys/devices/platform/musb_hdrc/mode)\
+			 = "b_peripheral" ]
+		then
+			break
+		else
+			echo -en "plugin the cable..\r"
+			sleep 1;
+		fi
+	done
+
+	echo -en "[$TESTN/$NTESTS] sleep after enumeration..\t\t"
+
+	test_sleep
+
+	# make sure we enumerated
+	if [ $STATUS -eq 0 ]; then
+		sleep 1
+		dmesg |tail -n 15|grep "gadget.*speed config" >/dev/null
+		if [ $? -eq 0 ]; then
+			echo OK
+		else
+			echo FAILED TO ENUMERATE
+		fi
+	else
+		echo FAIL
+	fi
+}
+
+###############################################################################
+# Setup before testing
+
+if [ $1 ]; then
+	if [ $1 = "-e" -o $1 = "--test-enumerated" ]; then
+		TEST_ENUM=1
+	else
+		print_help
+		exit 1
+	fi
+fi
+
+# minimize debug level
+printk_level=$(cat /proc/sys/kernel/printk)
+echo 3 >/proc/sys/kernel/printk
+
+# setup wakeup timer
+mount|grep debugfs >/dev/null
+mount_dbgfs=$?
+if [ $mount_dbgfs ]; then
+	mount debugfs /sys/kernel/debug -t debugfs
+fi
+echo 500 >/sys/kernel/debug/pm_debug/wakeup_timer_milliseconds
+
+#######################################################################
+# If the usb was already plugged, we should only test sleep with charger
+#
+if [ $(cat /sys/class/i2c-adapter/i2c-1/1-0048/twl4030_usb/vbus) == "off" ]
+then
+	let NTESTS=3+$TEST_ENUM
+	run_bootup_tests
+else
+	echo "cable was already connected, skipping the first two tests."
+	let NTESTS=1+$TEST_ENUM
+	modprobe g_nokia
+	if [ $? -gt 0 ]; then
+		echo "modprobe failed"
+		recover
+	fi
+fi
+
+#######################################################################
+# set number for the current test
+#
+let TESTN=$NTESTS-$TEST_ENUM
+
+#######################################################################
+# Testing sleep with charger. The only test that will be done every time.
+#
+charger
+let TESTN=$TESTN+1
+
+#######################################################################
+# Testing sleep after enumeration. Only for debugging.
+#
+if [ $TEST_ENUM -eq 0 ]; then
+	enumerated
+fi
+
+###############################################################################
+# the end
+recover
