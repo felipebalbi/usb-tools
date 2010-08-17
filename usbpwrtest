@@ -215,7 +215,7 @@ let TESTN=$TESTN+1
 #######################################################################
 # Testing sleep after enumeration. Only for debugging.
 #
-if [ $TEST_ENUM -eq 0 ]; then
+if [ $TEST_ENUM -eq 1 ]; then
 	enumerated
 fi
 
