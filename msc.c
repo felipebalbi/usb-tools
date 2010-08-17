@@ -477,11 +477,6 @@ static int do_test_write_diff_buf(struct usb_msc_test *msc)
 	/* reset to default */
 	msc->txbuf = txbuf_heap;
 
-	if (ret == 0)
-		printf("success\n");
-	else
-		printf("failed\n");
-
 	return ret;
 }
 
@@ -518,11 +513,6 @@ static int do_test_read_diff_buf(struct usb_msc_test *msc)
 
 	/* reset to default */
 	msc->rxbuf = rxbuf_heap;
-
-	if (ret == 0)
-		printf("success\n");
-	else
-		printf("failed\n");
 
 	return ret;
 }
@@ -646,13 +636,7 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_RANDOM_BOTH);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -747,13 +731,7 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -847,13 +825,7 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_RANDOM_READ);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -887,13 +859,7 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -920,13 +886,7 @@ static int do_test_lseek_past_last(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -960,13 +920,7 @@ static int do_test_read_past_last(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_READ_PAST_LAST);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1032,13 +986,7 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_128SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1104,14 +1052,7 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_64SECT);
 	}
 
-	printf("success\n");
-
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1177,13 +1118,7 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_32SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1249,13 +1184,7 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_8SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1321,13 +1250,7 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_2SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1375,13 +1298,7 @@ static int do_test_64sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_64SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1429,13 +1346,7 @@ static int do_test_32sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_32SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1483,13 +1394,7 @@ static int do_test_8sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_8SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1537,13 +1442,7 @@ static int do_test_1sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_1SECT);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1590,13 +1489,7 @@ static int do_test_simple(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SIMPLE);
 	}
 
-	printf("success\n");
-
-	return 0;
-
 err:
-	printf("failed\n");
-
 	return ret;
 }
 
@@ -1671,6 +1564,11 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 				__func__, test);
 		ret = -ENOTSUP;
 	}
+
+	if (ret == 0)
+		printf("success\n");
+	else
+		printf("failed\n");
 
 	return ret;
 }
