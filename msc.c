@@ -854,6 +854,8 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 		if (ret >=  0) {
 			ret = -EINVAL;
 			goto err;
+		} else {
+			ret = 0;
 		}
 
 		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
