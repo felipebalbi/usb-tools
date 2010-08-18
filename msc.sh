@@ -53,126 +53,126 @@ done
 printf "Starting test suite: $(date)\n"
 
 # Simple read and write
-printf "test 0a: simple 4k read/write				"
+printf "test 0a: simple 4k read/write				\n"
 ./msc -t 0 -o $OUTPUT -s 4096 -c $COUNT
 
-printf "test 0b: simple 8k read/write				"
+printf "test 0b: simple 8k read/write				\n"
 ./msc -t 0 -o $OUTPUT -s 8192 -c $COUNT
 
-printf "test 0c: simple 16k read/write				"
+printf "test 0c: simple 16k read/write				\n"
 ./msc -t 0 -o $OUTPUT -s 16384 -c $COUNT
 
-printf "test 0d: simple 32k read/write				"
+printf "test 0d: simple 32k read/write				\n"
 ./msc -t 0 -o $OUTPUT -s 32768 -c $COUNT
 
-printf "test 0e: simple 64k read/write				"
+printf "test 0e: simple 64k read/write				\n"
 ./msc -t 0 -o $OUTPUT -s 65536 -c $COUNT
 
 # 1-sector read/write
-printf "test 1: simple 1-sector read/write			"
+printf "test 1: simple 1-sector read/write			\n"
 ./msc -t 1 -o $OUTPUT -s 65536 -c $COUNT
 
 # 8-sectors read/write
-printf "test 2: simple 8-sectors read/write			"
+printf "test 2: simple 8-sectors read/write			\n"
 ./msc -t 2 -o $OUTPUT -s 65536 -c $COUNT
 
 # 32-sectors read/write
-printf "test 3: simple 32-sectors read/write			"
+printf "test 3: simple 32-sectors read/write			\n"
 ./msc -t 3 -o $OUTPUT -s 65536 -c $COUNT
 
 # 64-sectors read/write
-printf "test 4: simple 64-sectors read/write			"
+printf "test 4: simple 64-sectors read/write			\n"
 ./msc -t 4 -o $OUTPUT -s 65536 -c $COUNT
 
 # SG 2-sectors read/write
-printf "test 5a: scatter/gather for 2-sectors buflen 4k		"
+printf "test 5a: scatter/gather for 2-sectors buflen 4k		\n"
 ./msc -t 5 -o $OUTPUT -s 4096 -c $COUNT
 
-printf "test 5b: scatter/gather for 2-sectors buflen 8k		"
+printf "test 5b: scatter/gather for 2-sectors buflen 8k		\n"
 ./msc -t 5 -o $OUTPUT -s 8192 -c $COUNT
 
-printf "test 5c: scatter/gather for 2-sectors buflen 16k	"
+printf "test 5c: scatter/gather for 2-sectors buflen 16k	\n"
 ./msc -t 5 -o $OUTPUT -s 16384 -c $COUNT
 
-printf "test 5d: scatter/gather for 2-sectors buflen 32k	"
+printf "test 5d: scatter/gather for 2-sectors buflen 32k	\n"
 ./msc -t 5 -o $OUTPUT -s 32768 -c $COUNT
 
-printf "test 5e: scatter/gather for 2-sectors buflen 64k	"
+printf "test 5e: scatter/gather for 2-sectors buflen 64k	\n"
 ./msc -t 5 -o $OUTPUT -s 65536 -c $COUNT
 
 # SG 8-sectors read/write
-printf "test 6a: scatter/gather for 8-sectors buflen 4k		"
+printf "test 6a: scatter/gather for 8-sectors buflen 4k		\n"
 ./msc -t 6 -o $OUTPUT -s 4096 -c $COUNT
 
-printf "test 6b: scatter/gather for 8-sectors buflen 8k		"
+printf "test 6b: scatter/gather for 8-sectors buflen 8k		\n"
 ./msc -t 6 -o $OUTPUT -s 8192 -c $COUNT
 
-printf "test 6c: scatter/gather for 8-sectors buflen 16k	"
+printf "test 6c: scatter/gather for 8-sectors buflen 16k	\n"
 ./msc -t 6 -o $OUTPUT -s 16384 -c $COUNT
 
-printf "test 6d: scatter/gather for 8-sectors buflen 32k	"
+printf "test 6d: scatter/gather for 8-sectors buflen 32k	\n"
 ./msc -t 6 -o $OUTPUT -s 32768 -c $COUNT
 
-printf "test 6e: scatter/gather for 8-sectors buflen 64k	"
+printf "test 6e: scatter/gather for 8-sectors buflen 64k	\n"
 ./msc -t 6 -o $OUTPUT -s 65536 -c $COUNT
 
 # SG 32-sectors read/write
-printf "test 7a: scatter/gather for 32-sectors buflen 16k	"
+printf "test 7a: scatter/gather for 32-sectors buflen 16k	\n"
 ./msc -t 7 -o $OUTPUT -s 16384 -c $COUNT
 
-printf "test 7b: scatter/gather for 32-sectors buflen 32k	"
+printf "test 7b: scatter/gather for 32-sectors buflen 32k	\n"
 ./msc -t 7 -o $OUTPUT -s 32768 -c $COUNT
 
-printf "test 7c: scatter/gather for 32-sectors buflen 64k	"
+printf "test 7c: scatter/gather for 32-sectors buflen 64k	\n"
 ./msc -t 7 -o $OUTPUT -s 65536 -c $COUNT
 
 # SG 64-sectors read/write
-printf "test 8a: scatter/gather for 64-sectors buflen 32k	"
+printf "test 8a: scatter/gather for 64-sectors buflen 32k	\n"
 ./msc -t 8 -o $OUTPUT -s 32768 -c $COUNT
 
-printf "test 8b: scatter/gather for 64-sectors buflen 64k	"
+printf "test 8b: scatter/gather for 64-sectors buflen 64k	\n"
 ./msc -t 8 -o $OUTPUT -s 65536 -c $COUNT
 
 # SG 128-sectors read/write
-printf "test 9: scatter/gather for 128-sectors buflen 64k	"
+printf "test 9: scatter/gather for 128-sectors buflen 64k	\n"
 ./msc -t 9 -o $OUTPUT -s 65536 -c $COUNT
 
 # Read past the last sector
-printf "test 10: read over the end of the block device		"
+printf "test 10: read over the end of the block device		\n"
 ./msc -t 10 -o $OUTPUT -s 65536 -c $COUNT
 
 # Lseek past the last sector
-printf "test 11: lseek past the end of the block device		"
+printf "test 11: lseek past the end of the block device		\n"
 ./msc -t 11 -o $OUTPUT -s 65536 -c $COUNT
 
 # Write past the last sector
-printf "test 12: write over the end of the block device		"
+printf "test 12: write over the end of the block device		\n"
 ./msc -t 12 -o $OUTPUT -s 65536 -c $COUNT
 
 # write 1 sg, read in 8 random size sgs
-printf "test 13: write 1 sg, read 8 random size sgs		"
+printf "test 13: write 1 sg, read 8 random size sgs		\n"
 ./msc -t 13 -o $OUTPUT -s 65536 -c $COUNT
 
 # write 8 random size sgs, read 1 sg
-printf "test 14: write 8 random size sgs, read 1 sg		"
+printf "test 14: write 8 random size sgs, read 1 sg		\n"
 ./msc -t 14 -o $OUTPUT -s 65536 -c $COUNT
 
 # write and read 8 random size sgs
-printf "test 15: write and read 8 random size sgs		"
+printf "test 15: write and read 8 random size sgs		\n"
 ./msc -t 15 -o $OUTPUT -s 65536 -c $COUNT
 
 # read with differently allocated buffers
-printf "test 16a: read with heap allocated buffer		"
+printf "test 16a: read with heap allocated buffer		\n"
 ./msc -t 16 -o $OUTPUT -s 65536 -c $COUNT -b heap
 
-printf "test 16b: read with stack allocated buffer		"
+printf "test 16b: read with stack allocated buffer		\n"
 ./msc -t 16 -o $OUTPUT -s 65536 -c $COUNT -b stack
 
 # write with differently allocated buffers
-printf "test 17a: write with heap allocated buffer		"
+printf "test 17a: write with heap allocated buffer		\n"
 ./msc -t 17 -o $OUTPUT -s 65536 -c $COUNT -b heap
 
-printf "test 17b: write with stack allocated buffer		"
+printf "test 17b: write with stack allocated buffer		\n"
 ./msc -t 17 -o $OUTPUT -s 65536 -c $COUNT -b stack
 
 printf "Test suite ended: $(date)\n"

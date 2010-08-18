@@ -1565,10 +1565,10 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 		ret = -ENOTSUP;
 	}
 
-	if (ret == 0)
-		printf("success\n");
-	else
+	if (ret < 0)
 		printf("failed\n");
+	else
+		printf("success\n");
 
 	return ret;
 }
