@@ -276,7 +276,7 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 	diff = (end->tv_sec - start->tv_sec) * 1000000;
 	diff += end->tv_usec - start->tv_usec;
 
-	return (float) size / ((diff / 1000000.0) * 1024);
+	return (float) size / ((diff / 1000000.0) * 1024) * 8 / 1024 ;
 }
 
 /**
@@ -736,14 +736,14 @@ int main(int argc, char *argv[])
 		}
 
 		if (debug == 0) {
-			printf("[ V%04x P%04x written %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ]\n",
+			printf("[ V%04x P%04x Transferred %10.04f %sByte%s read %10.02f Mb/s write %10.02f Mb/s ]\n",
 					vid, pid, transferred, unit, transferred > 1 ? "s" : "",
 					serial->read_tput, serial->write_tput);
 
-			printf("[ read min: %10.02f kB/s - max:  %10.02f kB/s - avg: %10.02f kB/s ]\n",
+			printf("[ read min: %10.02f Mb/s - max:  %10.02f Mb/s - avg: %10.02f Mb/s ]\n",
 				serial->read_mintput, serial->read_maxtput, serial->read_avgtput);
 
-			printf("[ write min: %10.02f kB/s - max: %10.02f kB/s - avg: %10.02f kB/s ]\n",
+			printf("[ write min: %10.02f Mb/s - max: %10.02f Mb/s - avg: %10.02f Mb/s ]\n",
 				serial->write_mintput, serial->write_maxtput, serial->write_avgtput);
 
 			printf("\033[3A");
