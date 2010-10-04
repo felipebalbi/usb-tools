@@ -563,7 +563,6 @@ static struct option serial_opts[] = {
 	},
 	{
 		.name		= "fixed",
-		.has_arg	= 1,
 		.val		= 'f',
 	},
 	{
