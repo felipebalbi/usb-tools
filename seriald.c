@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <termios.h>
@@ -62,6 +63,16 @@ struct usb_serial_test {
 	unsigned		size;
 	char			*buf;
 };
+
+static int hangup;
+static struct usb_serial_test _serial;
+
+static void signal_hup(int sig)
+{
+	hangup = 1;
+	close(_serial.fd);
+	DBG("%s: caught signal %d\n", __func__, sig);
+}
 
 /**
  * tty_init - initializes an opened tty
@@ -181,52 +192,44 @@ err:
 	return ret;
 }
 
-static struct usb_serial_test *do_open(const char *pathname, int flags)
+static int do_open(const char *pathname, int flags)
 {
-	struct usb_serial_test	*serial;
-	struct stat		st;
+	int		fd;
+	struct stat	st;
 
-	serial = malloc(sizeof(*serial));
-	if (!serial) {
-		DBG("%s: could not allocate memory\n", __func__);
+	fd = open(pathname, flags);
+	if (fd < 0) {
+		DBG("%s: open failed\n", __func__);
 		goto err0;
 	}
 
-	serial->fd = open(pathname, flags);
-	if (serial->fd < 0) {
-		DBG("%s: open failed\n", __func__);
-		goto err1;
-	}
-
 	/* Make sure the file is a character device */
-	if (fstat(serial->fd, &st)) {
+	if (fstat(fd, &st)) {
 		DBG("%s failed to stat %s\n", __func__, pathname);
-		goto err2;
+		goto err1;
 	}
 	if (!S_ISCHR(st.st_mode)) {
 		DBG("%s: \"%s\" is not character device\n",
 			__func__, pathname);
 		errno = EBADF;
-		goto err2;
+		goto err1;
 	}
 
-	if (isatty(serial->fd)) {
+	if (isatty(fd)) {
 		DBG("%s is tty\n", pathname);
 
-		if (tty_init(serial->fd) < 0) {
+		if (tty_init(fd) < 0) {
 			DBG("%s: tty_init failed\n", __func__);
-			goto err2;
+			goto err1;
 		}
 	}
 
-	return serial;
+	return fd;
 
-err2:
-	close(serial->fd);
 err1:
-	free(serial);
+	close(fd);
 err0:
-	return NULL;
+	return -1;
 }
 
 /**
@@ -291,10 +294,15 @@ static struct option serial_opts[] = {
 
 int main(int argc, char *argv[])
 {
-	struct usb_serial_test	*serial;
+	struct usb_serial_test	*serial = &_serial;
 	unsigned		size = 0;
 	int			ret = 0;
 	char			*file = NULL;
+	struct sigaction	sa;
+
+	sa.sa_handler = signal_hup;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
 
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
@@ -333,8 +341,8 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, file);
 
-	serial = do_open(file, O_RDWR | O_NOCTTY);
-	if (!serial) {
+	serial->fd = do_open(file, O_RDWR | O_NOCTTY);
+	if (serial->fd < 0) {
 		fprintf(stderr, "%s: failed to open %s: %s\n",
 			argv[0], file, strerror(errno));
 		ret = 1;
@@ -352,8 +360,19 @@ int main(int argc, char *argv[])
 		goto err1;
 	}
 
+	if (sigaction(SIGHUP, &sa, NULL) == -1)
+		printf("failed to handle signal\n");
+
 	while (1) {
 		ret = do_test(serial);
+		if (hangup) {
+			hangup = 0;
+			serial->fd = do_open(file, O_RDWR | O_NOCTTY);
+			if (serial->fd < 0)
+				fprintf(stderr, "%s: reopen failed\n", argv[0]);
+			else
+				continue;
+		}
 		if (ret < 0) {
 			fprintf(stderr, "%s: test failed: %s\n",
 				__func__, strerror(errno));
@@ -364,7 +383,6 @@ int main(int argc, char *argv[])
 	free(serial->buf);
 err1:
 	close(serial->fd);
-	free(serial);
 err0:
 	return ret;
 }
