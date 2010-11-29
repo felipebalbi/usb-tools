@@ -182,7 +182,7 @@ mount_dbgfs=$?
 if [ $mount_dbgfs ]; then
 	mount debugfs /sys/kernel/debug -t debugfs
 fi
-echo 500 >/sys/kernel/debug/pm_debug/wakeup_timer_milliseconds
+echo 700 >/sys/kernel/debug/pm_debug/wakeup_timer_milliseconds
 
 #######################################################################
 # If the usb was already plugged, we should only test sleep with charger
