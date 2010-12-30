@@ -62,6 +62,8 @@ struct usb_serial_test {
 
 	unsigned		size;
 	char			*buf;
+
+	int			new_session;
 };
 
 static int hangup;
@@ -196,6 +198,7 @@ static int do_open(const char *pathname, int flags)
 {
 	int		fd;
 	struct stat	st;
+	pid_t		pid;
 
 	fd = open(pathname, flags);
 	if (fd < 0) {
@@ -217,6 +220,32 @@ static int do_open(const char *pathname, int flags)
 
 	if (isatty(fd)) {
 		DBG("%s is tty\n", pathname);
+
+		if (!_serial.new_session) {
+			close(fd);
+
+			pid = fork();
+			if (pid > 0) {
+				DBG("%s: forked a child process\n", __func__);
+				return 0;
+			} else if (pid == -1) {
+				DBG("%s: fork failed\n", __func__);
+				goto err0;
+			}
+
+			if (setsid() < 0) {
+				DBG("%s: setsid failed\n", __func__);
+				goto err0;
+			}
+
+			fd = open(pathname, flags);
+			if (fd < 0) {
+				DBG("%s: open failed\n", __func__);
+				goto err0;
+			}
+
+			_serial.new_session = 1;
+		}
 
 		if (tty_init(fd) < 0) {
 			DBG("%s: tty_init failed\n", __func__);
@@ -341,7 +370,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, file);
 
-	serial->fd = do_open(file, O_RDWR | O_NOCTTY);
+	serial->fd = do_open(file, O_RDWR);
 	if (serial->fd < 0) {
 		fprintf(stderr, "%s: failed to open %s: %s\n",
 			argv[0], file, strerror(errno));
@@ -367,7 +396,7 @@ int main(int argc, char *argv[])
 		ret = do_test(serial);
 		if (hangup) {
 			hangup = 0;
-			serial->fd = do_open(file, O_RDWR | O_NOCTTY);
+			serial->fd = do_open(file, O_RDWR);
 			if (serial->fd < 0)
 				fprintf(stderr, "%s: reopen failed\n", argv[0]);
 			else
