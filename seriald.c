@@ -32,6 +32,7 @@
 #include <poll.h>
 #include <getopt.h>
 #include <malloc.h>
+#include <sys/prctl.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -227,11 +228,19 @@ static int do_open(const char *pathname, int flags)
 			pid = fork();
 			if (pid > 0) {
 				DBG("%s: forked a child process\n", __func__);
-				return 0;
+				/*
+				  Parent foreground process is killed
+				  on demand disposing of child background
+				  process, so we need it run
+				*/
+				while (1)
+					sleep(1);
 			} else if (pid == -1) {
 				DBG("%s: fork failed\n", __func__);
 				goto err0;
 			}
+
+			prctl(PR_SET_PDEATHSIG, SIGKILL);
 
 			if (setsid() < 0) {
 				DBG("%s: setsid failed\n", __func__);
