@@ -113,7 +113,7 @@ run_bootup_tests() {
 # 3, charger
 charger() {
 	while [ 1 ]; do
-		if [ $(cat /sys/class/power_supply/usb/present) = "1" ]
+		if [ $(cat /sys/class/power_supply/usb/type) = "USB_DCP" ]
 		then
 			break
 		else
