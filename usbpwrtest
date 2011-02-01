@@ -69,12 +69,16 @@ print_status() {
 }
 
 verify_regulators () {
-	cat /sys/class/regulator/regulator.[2-4]/state|grep enabled >/dev/null
-	if [ $? -eq 1 ]; then
-		STATUS=0
-	else
-		STATUS=1
-	fi
+	STATUS=0
+	for i in 0 $(seq 19); do
+		if [ $(cat /sys/class/regulator/regulator.$i/name|grep USB) ]
+		then
+			STATE=$(cat /sys/class/regulator/regulator.$i/state)
+			if [ $STATE != "disabled" ]; then
+				STATUS=1
+			fi
+		fi
+	done
 }
 
 ###############################################################################
