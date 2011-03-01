@@ -299,6 +299,7 @@ static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 	if (bytes > 4)
 		serial->txbuf[bytes-1] = 0xff;
 
+	gettimeofday(&start, NULL);
 	while (done < bytes) {
 		bulk.ep = serial->eptx;
 		bulk.len = bytes - done;
@@ -307,20 +308,18 @@ static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 		bulk.timeout = TIMEOUT;
 		bulk.data = serial->txbuf + done;
 
-		gettimeofday(&start, NULL);
-
 		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
 		if (ret < 0) {
 			DBG("%s: failed to send data\n", __func__);
 			goto err;
 		}
-		gettimeofday(&end, NULL);
 		transferred = ret;
 
-		serial->write_tput = throughput(&start, &end, transferred);
 		serial->transferred += transferred;
 		done += transferred;
 	}
+	gettimeofday(&end, NULL);
+	serial->write_tput = throughput(&start, &end, done);
 
 	/* weighted average (10%-90%) */
 	if (!st) {
@@ -370,6 +369,7 @@ static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 	int				ret;
 	struct usbdevfs_bulktransfer	bulk;
 
+	gettimeofday(&start, NULL);
 	while (done < bytes) {
 		bulk.ep = serial->eprx;
 		bulk.len = bytes - done;
@@ -378,19 +378,17 @@ static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 		bulk.timeout = TIMEOUT;
 		bulk.data = (unsigned char *)serial->rxbuf + done;
 
-		gettimeofday(&start, NULL);
-
 		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
 		if (ret < 0) {
 			DBG("%s: failed receiving %d/%d bytes\n", __func__, done, bytes);
 			goto err;
 		}
-		gettimeofday(&end, NULL);
 		transferred = ret;
 
-		serial->read_tput = throughput(&start, &end, transferred);
 		done += transferred;
 	}
+	gettimeofday(&end, NULL);
+	serial->read_tput = throughput(&start, &end, done);
 
 	/* weighted average (10%-90%) */
 	if (!st) {
