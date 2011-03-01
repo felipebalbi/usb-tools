@@ -269,13 +269,15 @@ static void release_interface(struct usb_serial_test *serial)
 }
 
 /**
- * throughtput - Calculate throughput
+ * throughput - Calculate throughput in megabits per second
  * @usecs:	Number of microseconds taken
  * @size:	Size of data transfered
  */
 static float throughput(int64_t usecs, size_t size)
 {
-	return (float) size / ((usecs / 1000000.0) * 1024) * 8 / 1024 ;
+	float bits = (float) size * 8.0;
+	float secs = (float) usecs / 1000000.0;
+	return (bits / secs) / 1000000.0;
 }
 
 /**
