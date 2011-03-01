@@ -109,7 +109,7 @@ err:
  * do_write - writes our buffer to fd
  * @serial:	Serial Test Context
  */
-static int do_write(struct usb_serial_test *serial, uint16_t bytes)
+static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 {
 	int		done = 0;
 	int		ret;
@@ -157,7 +157,14 @@ static int do_read(struct usb_serial_test *serial)
 			goto err;
 		}
 
-		size = (buf[0] << 8) | buf[1];
+		size = (buf[0] << 24)
+			| (buf[1] << 16)
+			| (buf[2] << 8)
+			| (buf[3]);
+		if (size > serial->size) {
+			DBG("%s: corrupted size %d\n", __func__, size);
+			goto err;
+		}
 
 		done += ret;
 		serial->amount_read += ret;
@@ -276,7 +283,7 @@ err0:
  */
 static int do_test(struct usb_serial_test *serial)
 {
-	uint16_t	bytes;
+	uint32_t	bytes;
 	int		ret;
 
 	ret = do_poll(serial);

@@ -284,7 +284,7 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
  * @serial:	Serial Test Context
  * @bytes:	amount of data to write
  */
-static int do_write(struct usb_serial_test *serial, uint16_t bytes)
+static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 {
 	static unsigned char		st;
 	int				transferred = 0;
@@ -292,9 +292,11 @@ static int do_write(struct usb_serial_test *serial, uint16_t bytes)
 	int				ret;
 	struct usbdevfs_bulktransfer	bulk;
 
-	serial->txbuf[0] = bytes >> 8;
-	serial->txbuf[1] = (bytes << 8) >> 8;
-	if (bytes > 2)
+	serial->txbuf[0] = (bytes >> 24) & 0xFF;
+	serial->txbuf[1] = (bytes >> 16) & 0xFF;
+	serial->txbuf[2] = (bytes >>  8) & 0xFF;
+	serial->txbuf[3] = (bytes >>  0) & 0xFF;
+	if (bytes > 4)
 		serial->txbuf[bytes-1] = 0xff;
 
 	while (done < bytes) {
@@ -359,8 +361,9 @@ err:
  * @serial:	Serial Test Context
  * @bytes:	amount of data to read
  */
-static int do_read(struct usb_serial_test *serial, uint16_t bytes)
+static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 {
+
 	static unsigned char		st;
 	int				transferred = 0;
 	int				done = 0;
@@ -414,7 +417,7 @@ err:
  * @serial:	Serial Test Context
  * @bytes:	amount of data to verify
  */
-static int do_verify(struct usb_serial_test *serial, uint16_t bytes)
+static int do_verify(struct usb_serial_test *serial, uint32_t bytes)
 {
 	int			i;
 
@@ -433,7 +436,7 @@ static int do_verify(struct usb_serial_test *serial, uint16_t bytes)
  * @serial:	Serial Test Context
  * @bytes:	amount of data to transfer
  */
-static int do_test(struct usb_serial_test *serial, uint16_t bytes)
+static int do_test(struct usb_serial_test *serial, uint32_t bytes)
 {
 	int			ret;
 
@@ -707,9 +710,9 @@ int main(int argc, char *argv[])
 		char		*unit = NULL;
 
 		if (!fixed) {
-			/* We want packet size to be in range [2 , serial->size],
-			*  as first two bytes are holding the packet size */
-			n = random() % (serial->size - 1) + 2;
+			/* We want packet size to be in range [4 , serial->size],
+			*  as first four bytes are holding the packet size */
+			n = random() % (serial->size - 1) + 4;
 		} else {
 			n = size;
 		}
