@@ -81,6 +81,8 @@ struct usb_device_descriptor {
 /**
  * usb_serial_test - USB u_serial Test Context
  * @transferred:	amount of data transferred so far
+ * @read_usecs:		number of microseconds spent in reads
+ * @write_usecs:	number of microseconds spent in writes
  * @read_tput:		read throughput
  * @write_tput:		write throughput
  * @read_maxtput:	read max throughput
@@ -101,6 +103,9 @@ struct usb_device_descriptor {
 struct usb_serial_test {
 	int			udevh;
 	uint64_t		transferred;
+
+	uint64_t		read_usecs;
+	uint64_t		write_usecs;
 
 	float			read_tput;
 	float			write_tput;
@@ -265,18 +270,27 @@ static void release_interface(struct usb_serial_test *serial)
 
 /**
  * throughtput - Calculate throughput
- * @start:	Start time
- * @end:	End time
+ * @usecs:	Number of microseconds taken
  * @size:	Size of data transfered
  */
-static float throughput(struct timeval *start, struct timeval *end, size_t size)
+static float throughput(int64_t usecs, size_t size)
+{
+	return (float) size / ((usecs / 1000000.0) * 1024) * 8 / 1024 ;
+}
+
+/**
+ * usecs - Calculate number of microseconds between two timevals
+ * @start:	Start time
+ * @end:	End time
+ */
+static int64_t usecs(struct timeval *start, struct timeval *end)
 {
 	int64_t			diff;
 
 	diff = (end->tv_sec - start->tv_sec) * 1000000;
 	diff += end->tv_usec - start->tv_usec;
 
-	return (float) size / ((diff / 1000000.0) * 1024) * 8 / 1024 ;
+	return diff;
 }
 
 /**
@@ -286,7 +300,6 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
  */
 static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 {
-	static unsigned char		st;
 	int				transferred = 0;
 	int				done = 0;
 	int				ret;
@@ -319,17 +332,13 @@ static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 		done += transferred;
 	}
 	gettimeofday(&end, NULL);
-	serial->write_tput = throughput(&start, &end, done);
+	serial->write_tput = throughput(usecs(&start, &end), done);
+	if (done > 0)
+		serial->write_usecs += usecs(&start, &end);
 
-	/* weighted average (10%-90%) */
-	if (!st) {
-		st = 1;
-		serial->write_avgtput = serial->write_tput;
-	} else {
-		/* skip when writing zero bytes */
-		if (serial->write_tput)
-			serial->write_avgtput = (0.1 * serial->write_tput + 0.9 * serial->write_avgtput);
-	}
+	/* total average over duration of test */
+	serial->write_avgtput = throughput(serial->write_usecs,
+					serial->transferred);
 
 	if (serial->write_tput > serial->write_maxtput)
 		serial->write_maxtput = serial->write_tput;
@@ -362,8 +371,6 @@ err:
  */
 static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 {
-
-	static unsigned char		st;
 	int				transferred = 0;
 	int				done = 0;
 	int				ret;
@@ -388,16 +395,14 @@ static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 		done += transferred;
 	}
 	gettimeofday(&end, NULL);
-	serial->read_tput = throughput(&start, &end, done);
+	serial->read_tput = throughput(usecs(&start, &end), done);
+	if (done > 0)
+		serial->read_usecs += usecs(&start, &end);
 
-	/* weighted average (10%-90%) */
-	if (!st) {
-		st = 1;
-		serial->read_avgtput = serial->read_tput;
-	} else {
-		if (serial->read_tput)
-			serial->read_avgtput = (0.1 * serial->read_tput + 0.9 * serial->read_avgtput);
-	}
+	/* total average over duration of test */
+	serial->read_avgtput = throughput(serial->read_usecs,
+					serial->transferred);
+
 	if (serial->read_tput > serial->read_maxtput)
 		serial->read_maxtput = serial->read_tput;
 
