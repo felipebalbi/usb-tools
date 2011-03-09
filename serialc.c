@@ -529,6 +529,7 @@ static void usage(char *prog)
 			"\t--rxep, -r	rx endpoint number\n"
 			"\t--txep, -t	tx endpoint number\n"
 			"\t--size, -s	Internal buffer size\n"
+			"\t--fixed, -f	Use fixed transfer size\n"
 			"\t--debug, -d	Enables debugging messages\n"
 			"\t--help, -h	This help\n", prog);
 }
