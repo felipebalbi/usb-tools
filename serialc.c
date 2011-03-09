@@ -157,7 +157,7 @@ void signal_exit(int sig)
 }
 
 /**
- * init_buffer - initializes our TX buffer with known data
+ * init_buffer - initializes our TX buffer with pseudo random data
  * @buf:	Buffer to initialize
  */
 static void init_buffer(struct usb_serial_test *serial)
@@ -166,7 +166,7 @@ static void init_buffer(struct usb_serial_test *serial)
 	unsigned char		*buf = serial->txbuf;
 
 	for (i = 0; i < serial->size; i++)
-		buf[i] = i % serial->size;
+		buf[i] = rand() & 0xFF;
 }
 
 /**
