@@ -718,7 +718,7 @@ int main(int argc, char *argv[])
 		if (!fixed) {
 			/* We want packet size to be in range [4 , serial->size],
 			*  as first four bytes are holding the packet size */
-			n = random() % (serial->size - 1) + 4;
+			n = random() % (serial->size - 3) + 4;
 		} else {
 			n = size;
 		}
