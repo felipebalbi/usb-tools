@@ -420,7 +420,6 @@ err:
 static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned bytes)
 {
-	int			done = 0;
 	int			ret;
 
 	gettimeofday(&start, NULL);
@@ -431,7 +430,6 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 	}
 	gettimeofday(&end, NULL);
 
-	done += ret;
 	msc->transferred += ret;
 	msc->read_tput = throughput(&start, &end, ret);
 
@@ -809,7 +807,7 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 			goto err;
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (ret < 0) {
+		if (pos < 0) {
 			DBG("%s: lseek failed\n", __func__);
 			goto err;
 		}
@@ -1637,7 +1635,7 @@ int main(int argc, char *argv[])
 	unsigned		type = MSC_BUFFER_HEAP;
 	int			ret = 0;
 
-	time_t 			t;
+	time_t			t;
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
@@ -1673,7 +1671,8 @@ int main(int argc, char *argv[])
 			}
 
 			if (size % getpagesize()) {
-				DBG("%s: unaligned size (pagesize=%d)\n", __func__, getpagesize());
+				DBG("%s: unaligned size (pagesize=%d)\n",
+						__func__, getpagesize());
 				ret = -EINVAL;
 				goto err0;
 			}
@@ -1738,7 +1737,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, output);
 
-	msc->fd = open(output, O_RDWR | O_DIRECT);
+	msc->fd = open(output, O_RDWR | O_SYNC);
 	if (msc->fd < 0) {
 		DBG("%s: could not open %s\n", __func__, output);
 		goto err2;
@@ -1761,10 +1760,8 @@ int main(int argc, char *argv[])
 	msc->sect_size = sect_size;
 	msc->type = type;
 
-	DBG("%s: file descriptor %d size %.2f MB, blksize= %lld , sect_size= %d, type\n", __func__, msc->fd,
-			(float) msc->psize / 1024 / 1024, msc->psize, msc->sect_size);
-
-	/* sync before starting any test in order to get more
+	/*
+	 * sync before starting any test in order to get more
 	 * reliable results out of the tests
 	 */
 	sync();
@@ -1774,7 +1771,8 @@ int main(int argc, char *argv[])
 	if (ret < 0) {
 		t = time(NULL);
 		DBG("%s: test failed\n", __func__);
-		ERR(" %d : test failed @ test = %d, ret = %d\n", (int) t, test, ret);
+		ERR(" %d : test failed @ test = %d, ret = %d\n",
+				(int) t, test, ret);
 		goto err3;
 	}
 

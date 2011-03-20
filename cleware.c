@@ -236,7 +236,7 @@ static libusb_device_handle *find_and_open_device(libusb_device **list,
 	int				ret;
 	int				i;
 
-	DBG("%s: iterating over %d devices\n", __func__, count);
+	DBG("%s: iterating over %zd devices\n", __func__, count);
 
 	for (i = 0; i < count; i++) {
 		libusb_device *udev = list[i];
