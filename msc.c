@@ -1737,7 +1737,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, output);
 
-	msc->fd = open(output, O_RDWR | O_SYNC);
+	msc->fd = open(output, O_RDWR | O_DIRECT);
 	if (msc->fd < 0) {
 		DBG("%s: could not open %s\n", __func__, output);
 		goto err2;
