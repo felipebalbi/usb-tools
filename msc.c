@@ -36,6 +36,8 @@
 #include <sys/mount.h>
 #include <sys/uio.h>
 
+#define __maybe_unused		__attribute__((unused))
+
 #define BUFLEN			65536
 #define PAGE_SIZE		4096
 
@@ -133,16 +135,10 @@ static char	*units[] = {
  */
 static void init_buffer(struct usb_msc_test *msc)
 {
-	int			i;
 	char			*buf = msc->txbuf;
 
-	srand(1024);
-
-	for (i = 0; i < msc->size; i++)
-		buf[i] = random() % (sizeof(buf) + 1);
-
-	for (i = 0; i < BUFLEN; i++)
-		txbuf_stack[i] = buf[i];
+	memset(buf, 0x55, msc->size);
+	memset(txbuf_stack, 0x55, msc->size);
 }
 
 /**
@@ -341,6 +337,18 @@ err:
 	return ret;
 }
 
+static void __maybe_unused hexdump(char *buf, unsigned size)
+{
+	int			i;
+
+	for (i = 0; i < size; i++) {
+		if (i && ((i % 16) == 0))
+			printf("\n");
+		printf("%02x ", buf[i]);
+	}
+	printf("\n");
+}
+
 /**
  * do_verify - Verify consistency of data
  * @msc:	Mass Storage Test Context
@@ -352,7 +360,7 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 
 	for (i = 0; i < bytes; i++)
 		if (msc->txbuf[i] != msc->rxbuf[i]) {
-			DBG("%s: byte %d failed [%02x %02x]\n", __func__,
+			ERR("%s: byte %d failed [TX %02x RX %02x]\n", __func__,
 					i, msc->txbuf[i], msc->rxbuf[i]);
 			return -EINVAL;
 		}
@@ -502,6 +510,8 @@ static int do_test_read_diff_buf(struct usb_msc_test *msc)
 	}
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_read(msc, msc->size);
 		if (ret < 0)
 			break;
@@ -612,6 +622,8 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 8);
 		if (ret < 0)
 			goto err;
@@ -707,6 +719,8 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 8);
 		if (ret < 0)
 			goto err;
@@ -802,6 +816,8 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -839,6 +855,8 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		/* seek to one sector less then needed */
 		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
@@ -902,6 +920,8 @@ static int do_test_read_past_last(struct usb_msc_test *msc)
 	int			i;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		/* seek to one sector less then needed */
 		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
@@ -964,6 +984,8 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -1030,6 +1052,8 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -1096,6 +1120,8 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -1162,6 +1188,8 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -1228,6 +1256,8 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_writev(msc, tiov, 1);
 		if (ret < 0)
 			goto err;
@@ -1274,6 +1304,8 @@ static int do_test_64sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_write(msc, 64 * msc->sect_size);
 		if (ret < 0)
 			break;
@@ -1322,6 +1354,8 @@ static int do_test_32sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_write(msc, 32 * msc->sect_size);
 		if (ret < 0)
 			break;
@@ -1370,6 +1404,8 @@ static int do_test_8sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_write(msc, 8 * msc->sect_size);
 		if (ret < 0)
 			goto err;
@@ -1418,6 +1454,8 @@ static int do_test_1sect(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_write(msc, msc->sect_size);
 		if (ret < 0)
 			goto err;
@@ -1466,6 +1504,8 @@ static int do_test_simple(struct usb_msc_test *msc)
 	msc->offset = ret;
 
 	for (i = 0; i < msc->count; i++) {
+		memset(msc->rxbuf, 0x00, msc->size);
+
 		ret = do_write(msc, msc->size);
 		if (ret < 0)
 			goto err;
@@ -1635,7 +1675,6 @@ int main(int argc, char *argv[])
 	unsigned		type = MSC_BUFFER_HEAP;
 	int			ret = 0;
 
-	time_t			t;
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
@@ -1769,10 +1808,7 @@ int main(int argc, char *argv[])
 	ret = do_test(msc, test);
 
 	if (ret < 0) {
-		t = time(NULL);
 		DBG("%s: test failed\n", __func__);
-		ERR(" %d : test failed @ test = %d, ret = %d\n",
-				(int) t, test, ret);
 		goto err3;
 	}
 
