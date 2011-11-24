@@ -52,6 +52,13 @@ do_test ()
     fi
 }
 
+while getopts n: o
+do     case "$o" in
+       n)      times="$OPTARG";;
+       esac
+done
+shift $(expr $OPTIND - 1)
+
 ARGS="$*"
 
 if [ "$ARGS" = "" ];
@@ -82,8 +89,18 @@ check_config ()
 
 echo "TESTING:  $ARGS"
 
-while : true
-do
+i=0
+next_time()
+{
+    i=$(expr $i + 1)
+    if [ -z $times ]; then
+	true
+    else
+	[ $i -le $times ]
+    fi
+}
+
+while next_time; do
     echo $(date)
 
     for TYPE in $ARGS
