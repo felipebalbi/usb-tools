@@ -28,8 +28,6 @@ TYPES='control out in'
 #  - add other concurrent system loads
 #
 
-declare -i COUNT BUFLEN
-
 COUNT=50000
 BUFLEN=2048
 
