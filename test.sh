@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # test types can be passed on the command line:
 #
