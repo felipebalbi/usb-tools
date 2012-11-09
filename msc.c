@@ -76,6 +76,7 @@ struct usb_msc_test {
 	int		count;		/* iteration count */
 
 	unsigned	sect_size;	/* sector size */
+	unsigned	pattern;	/* pattern to use */
 	unsigned	size;		/* buffer size */
 	unsigned	type;		/* buffer type */
 
@@ -105,11 +106,20 @@ enum usb_msc_test_case {
 	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
 	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
 	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
+	MSC_TEST_PATTERNS,		/* write known patterns and read it back */
 };
 
 enum usb_msc_buffer_type {
 	MSC_BUFFER_HEAP,
 	MSC_BUFFER_STACK,
+};
+
+/* Patterns taken from linux/arch/x86/mm/memtest.c */
+static uint8_t msc_patterns[] = {
+	0x00, 0xff, 0x55, 0xaa,
+	0x11, 0x22, 0x44, 0x88,
+	0x33, 0x66, 0x99, 0xcc,
+	0x77, 0xbb, 0xdd, 0xee,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -448,6 +458,48 @@ err:
 }
 
 /* ------------------------------------------------------------------------- */
+
+/*
+ * do_test_patterns - write known pattern and read it back
+ * @msc:	Mass Storage Test Context
+ */
+static int do_test_patterns(struct usb_msc_test *msc)
+{
+	int			ret = 0;
+	int			i;
+
+	for (i = 0; i < msc->count; i++) {
+		uint8_t		pattern = msc_patterns[msc->pattern];
+		off_t		pos;
+
+		memset(msc->txbuf, pattern, msc->size);
+		memset(msc->rxbuf, 0x00, msc->size);
+
+		ret = do_write(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		pos = lseek(msc->fd, msc->offset - msc->size, SEEK_SET);
+		if (pos < 0) {
+			ret = (int) pos;
+			break;
+		}
+
+		msc->offset = ret;
+
+		ret = do_read(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		ret = do_verify(msc, msc->size);
+		if (ret < 0)
+			break;
+
+		report_progress(msc, MSC_TEST_PATTERNS);
+	}
+
+	return ret;
+}
 
 /**
  * do_test_write_diff_buf - read with different buffer types
@@ -1599,6 +1651,9 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 	case MSC_TEST_WRITE_DIFF_BUF:
 		ret = do_test_write_diff_buf(msc);
 		break;
+	case MSC_TEST_PATTERNS:
+		ret = do_test_patterns(msc);
+		break;
 	default:
 		printf("%s: test %d is not supported\n",
 				__func__, test);
@@ -1624,6 +1679,7 @@ static void usage(char *prog)
 			--count, -c		Iteration count\n\
 			--buffer-type, -b	Buffer type (stack | heap)\n\
 			--debug, -d		Enables debugging messages\n\
+			--pattern, -p		Pattern chosen\n\
 			--help, -h		This help\n", prog);
 }
 
@@ -1649,6 +1705,11 @@ static struct option msc_opts[] = {
 		.val		= 'c',
 	},
 	{
+		.name		= "pattern",	/* chosen pattern */
+		.has_arg	= 1,
+		.val		= 'p',
+	},
+	{
 		.name		= "buffer-type",	/* buffer type */
 		.has_arg	= 1,
 		.val		= 'b',
@@ -1669,6 +1730,7 @@ int main(int argc, char *argv[])
 	struct usb_msc_test	*msc;
 
 	uint64_t		blksize;
+	unsigned		pattern = 0;
 	unsigned		sect_size;
 	unsigned		size = 0;
 	unsigned		count = 100; /* 100 loops by default */
@@ -1683,7 +1745,7 @@ int main(int argc, char *argv[])
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:b:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:dh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1724,7 +1786,13 @@ int main(int argc, char *argv[])
 				goto err0;
 			}
 			break;
-
+		case 'p':
+			pattern = atoi(optarg);
+			if (pattern > ARRAY_SIZE(msc_patterns)) {
+				DBG("%s: invalid pattern\n", __func__);
+				goto err0;
+			}
+			break;
 		case 'b':
 			if (!strncmp(optarg, "heap", 4)) {
 				type = MSC_BUFFER_HEAP;
@@ -1767,6 +1835,7 @@ int main(int argc, char *argv[])
 	msc->count = count;
 	msc->size = size;
 	msc->output = output;
+	msc->pattern = pattern;
 
 	ret = alloc_and_init_buffer(msc);
 	if (ret < 0) {
