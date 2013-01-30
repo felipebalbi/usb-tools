@@ -244,12 +244,15 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 	}
 
 	if (!debug) {
-		if (show_tput)
+		if (show_tput) {
+			msc->read_tput /= msc->count;
+			msc->write_tput /= msc->count;
 			printf("\rtest %d: sent %10.04f %sB read %10.02f MB/s write %10.02f MB/s ... ",
 					test, transferred, unit, msc->read_tput, msc->write_tput);
-		else
+		} else {
 			printf("\rtest %d: sent %10.04f %sB read         MB/s write         MB/s ... ",
 					test, transferred, unit);
+		}
 
 		fflush(stdout);
 	}
@@ -269,6 +272,7 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 
 	char			*buf = msc->txbuf;
 
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	while (done < bytes) {
 		unsigned	size = bytes - done;
 
@@ -277,15 +281,11 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 			size = msc->pempty;
 		}
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		ret = write(msc->fd, buf + done, size);
 		if (ret < 0) {
 			DBG("%s: write failed\n", __func__);
 			goto err;
 		}
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
-		msc->write_tput = throughput(&start, &end, ret);
 
 		done += ret;
 		msc->pempty -= ret;
@@ -305,6 +305,9 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 
 		}
 	}
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+	msc->write_tput += throughput(&start, &end, ret);
+
 
 	msc->offset = ret;
 
@@ -326,8 +329,8 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 
 	char			*buf = msc->rxbuf;
 
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	while (done < bytes) {
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
 			DBG("%s: read failed\n", __func__);
@@ -340,12 +343,11 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 			goto err;
 		}
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
 		done += ret;
 		msc->transferred += ret;
-		msc->read_tput = throughput(&start, &end, ret);
 	}
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+	msc->read_tput += throughput(&start, &end, bytes);
 
 	return 0;
 
@@ -403,8 +405,7 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
-	msc->write_tput = throughput(&start, &end, ret);
+	msc->write_tput += throughput(&start, &end, ret);
 
 	msc->pempty -= ret;
 
@@ -453,9 +454,8 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
+	msc->read_tput += throughput(&start, &end, ret);
 	msc->transferred += ret;
-	msc->read_tput = throughput(&start, &end, ret);
 
 	return 0;
 
