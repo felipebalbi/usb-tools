@@ -215,7 +215,7 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 	diff = (end->tv_sec - start->tv_sec) * 1000000;
 	diff += end->tv_usec - start->tv_usec;
 
-	return (float) size / ((diff / 1000000.0) * 1024);
+	return (float) size / ((diff / 1000000.0) * 1024 * 1024);
 }
 
 /**
@@ -245,12 +245,11 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 
 	if (!debug) {
 		if (show_tput)
-			printf("\rtest %d: sent %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ... ",
-					test, transferred, unit, transferred > 1 ? "s" : " ",
-					msc->read_tput, msc->write_tput);
+			printf("\rtest %d: sent %10.04f %sB read %10.02f MB/s write %10.02f MB/s ... ",
+					test, transferred, unit, msc->read_tput, msc->write_tput);
 		else
-			printf("\rtest %d: sent %10.04f %sByte%s read         kB/s write         kB/s ... ",
-					test, transferred, unit, transferred > 1 ? "s" : " ");
+			printf("\rtest %d: sent %10.04f %sB read         MB/s write         MB/s ... ",
+					test, transferred, unit);
 
 		fflush(stdout);
 	}
