@@ -47,8 +47,8 @@
 static unsigned debug;
 
 /* for measuring throughput */
-static struct timeval		start;
-static struct timeval		end;
+static struct timespec		start;
+static struct timespec		end;
 
 /* different buffers */
 static char			*txbuf_heap;
@@ -208,14 +208,14 @@ err0:
 	return ret;
 }
 
-static float throughput(struct timeval *start, struct timeval *end, size_t size)
+static float throughput(struct timespec *start, struct timespec *end, size_t size)
 {
 	int64_t diff;
 
-	diff = (end->tv_sec - start->tv_sec) * 1000000;
-	diff += end->tv_usec - start->tv_usec;
+	diff = (end->tv_sec - start->tv_sec) * 1000000000;
+	diff += end->tv_nsec - start->tv_nsec;
 
-	return (float) size / ((diff / 1000000.0) * 1024 * 1024);
+	return (float) size / ((diff / 1000000000.0) * 1024 * 1024);
 }
 
 /**
@@ -277,13 +277,13 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 			size = msc->pempty;
 		}
 
-		gettimeofday(&start, NULL);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		ret = write(msc->fd, buf + done, size);
 		if (ret < 0) {
 			DBG("%s: write failed\n", __func__);
 			goto err;
 		}
-		gettimeofday(&end, NULL);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
 		msc->write_tput = throughput(&start, &end, ret);
 
@@ -327,7 +327,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 	char			*buf = msc->rxbuf;
 
 	while (done < bytes) {
-		gettimeofday(&start, NULL);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
 			DBG("%s: read failed\n", __func__);
@@ -340,7 +340,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 			goto err;
 		}
 
-		gettimeofday(&end, NULL);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
 		done += ret;
 		msc->transferred += ret;
@@ -396,13 +396,13 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 	off_t			pos;
 	int			ret;
 
-	gettimeofday(&start, NULL);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	ret = writev(msc->fd, iov, count);
 	if (ret < 0) {
 		DBG("%s: writev failed\n", __func__);
 		goto err;
 	}
-	gettimeofday(&end, NULL);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
 	msc->write_tput = throughput(&start, &end, ret);
 
@@ -446,13 +446,13 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 {
 	int			ret;
 
-	gettimeofday(&start, NULL);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	ret = readv(msc->fd, iov, bytes);
 	if (ret < 0) {
 		DBG("%s: readv failed\n", __func__);
 		goto err;
 	}
-	gettimeofday(&end, NULL);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
 	msc->transferred += ret;
 	msc->read_tput = throughput(&start, &end, ret);

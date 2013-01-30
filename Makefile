@@ -25,6 +25,7 @@ CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
 	 -D_GNU_SOURCE
 LIBUSB= -lusb-1.0
 LIBPTHREAD= -lpthread
+LIBRT= -lrt
 
 PROGRAMS = cleware msc serialc
 
@@ -57,7 +58,7 @@ acmd:
 	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
 
 msc:
-	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBRT) -o $@ $@.c
 
 seriald:
 	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
