@@ -212,7 +212,7 @@ static float throughput(struct timeval *start, struct timeval *end, size_t size)
 	diff = (end->tv_sec - start->tv_sec) * 1000000;
 	diff += end->tv_usec - start->tv_usec;
 
-	return (float) size / ((diff / 1000000.0) * 1024 * 1024);
+	return (float) size / ((diff / 1000000.0) * 1024);
 }
 
 /**
@@ -241,32 +241,9 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 	}
 
 	if (!debug) {
-		printf("\rtest %d: sent %10.02f %sB\tread       MB/s\twrite       MB/s",
-				test, transferred, unit);
-		fflush(stdout);
-	}
-}
-
-static void report_throughput(struct usb_msc_test *msc, enum usb_msc_test_case test)
-{
-	float		transferred = 0;
-	int		i;
-	char		*unit = NULL;
-
-	transferred = (float) msc->transferred;
-
-	for (i = 0; i < ARRAY_SIZE(units); i++) {
-		if (transferred > 1024.0) {
-			transferred /= 1024.0;
-			continue;
-		}
-		unit = units[i];
-		break;
-	}
-
-	if (!debug) {
-		printf("\rtest %d: sent %10.02f %sB\tread %4.03f MB/s\twrite %4.03f MB/s ... ",
-				test, transferred, unit, msc->read_tput, msc->write_tput);
+		printf("\rtest %d: sent %10.04f %sByte%s read %10.02f kB/s write %10.02f kB/s ... ",
+				test, transferred, unit, transferred > 1 ? "s" : " ",
+				msc->read_tput, msc->write_tput);
 
 		fflush(stdout);
 	}
@@ -286,8 +263,6 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 
 	char			*buf = msc->txbuf;
 
-	gettimeofday(&start, NULL);
-
 	while (done < bytes) {
 		unsigned	size = bytes - done;
 
@@ -296,11 +271,15 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 			size = msc->pempty;
 		}
 
+		gettimeofday(&start, NULL);
 		ret = write(msc->fd, buf + done, size);
 		if (ret < 0) {
 			DBG("%s: write failed\n", __func__);
 			goto err;
 		}
+		gettimeofday(&end, NULL);
+
+		msc->write_tput = throughput(&start, &end, ret);
 
 		done += ret;
 		msc->pempty -= ret;
@@ -321,8 +300,6 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		}
 	}
 
-	gettimeofday(&end, NULL);
-	msc->write_tput += throughput(&start, &end, bytes);
 	msc->offset = ret;
 
 	return 0;
@@ -343,9 +320,8 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 
 	char			*buf = msc->rxbuf;
 
-	gettimeofday(&start, NULL);
-
 	while (done < bytes) {
+		gettimeofday(&start, NULL);
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
 			DBG("%s: read failed\n", __func__);
@@ -358,13 +334,12 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 			goto err;
 		}
 
+		gettimeofday(&end, NULL);
 
 		done += ret;
 		msc->transferred += ret;
+		msc->read_tput = throughput(&start, &end, ret);
 	}
-
-	gettimeofday(&end, NULL);
-	msc->read_tput += throughput(&start, &end, bytes);
 
 	return 0;
 
@@ -407,24 +382,23 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
  * do_writev - SG Write txbuf to fd
  * @msc:	Mass Storage Test Context
  * @iov:	iovec structure pointer
- * @bytes:	how many transfers
+ * @count:	how many transfers
  */
 static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
-		unsigned bytes)
+		unsigned count)
 {
 	off_t			pos;
 	int			ret;
 
 	gettimeofday(&start, NULL);
-	ret = writev(msc->fd, iov, bytes);
+	ret = writev(msc->fd, iov, count);
 	if (ret < 0) {
 		DBG("%s: writev failed\n", __func__);
 		goto err;
 	}
 	gettimeofday(&end, NULL);
 
-	msc->transferred += bytes;
-	msc->write_tput += throughput(&start, &end, bytes);
+	msc->write_tput = throughput(&start, &end, ret);
 
 	msc->pempty -= ret;
 
@@ -447,7 +421,7 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 	}
 
-	msc->offset = pos;
+	msc->offset = ret;
 
 	return 0;
 
@@ -459,7 +433,7 @@ err:
  * do_read - SG Read from fd to rxbuf
  * @msc:	Mass Storage Test Context
  * @iov:	iovec structure pointer
- * @bytes:	how many transfers
+ * @count:	how many transfers
  */
 static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned bytes)
@@ -474,8 +448,8 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 	}
 	gettimeofday(&end, NULL);
 
-	msc->transferred += bytes;
-	msc->read_tput += throughput(&start, &end, bytes);
+	msc->transferred += ret;
+	msc->read_tput = throughput(&start, &end, ret);
 
 	return 0;
 
@@ -524,10 +498,6 @@ static int do_test_patterns(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_PATTERNS);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_PATTERNS);
-
 	return ret;
 }
 
@@ -558,12 +528,9 @@ static int do_test_write_diff_buf(struct usb_msc_test *msc)
 		ret = do_write(msc, msc->size);
 		if (ret < 0)
 			break;
+
 		report_progress(msc, MSC_TEST_WRITE_DIFF_BUF);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_WRITE_DIFF_BUF);
 
 	/* reset to default */
 	msc->txbuf = txbuf_heap;
@@ -600,12 +567,9 @@ static int do_test_read_diff_buf(struct usb_msc_test *msc)
 		ret = do_read(msc, msc->size);
 		if (ret < 0)
 			break;
+
 		report_progress(msc, MSC_TEST_READ_DIFF_BUF);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_READ_DIFF_BUF);
 
 	/* reset to default */
 	msc->rxbuf = rxbuf_heap;
@@ -730,12 +694,9 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		ret = do_verify(msc, len);
 		if (ret < 0)
 			goto err;
+
 		report_progress(msc, MSC_TEST_SG_RANDOM_BOTH);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_RANDOM_BOTH);
 
 err:
 	return ret;
@@ -830,12 +791,9 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		ret = do_verify(msc, len);
 		if (ret < 0)
 			goto err;
+
 		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_RANDOM_WRITE);
 
 err:
 	return ret;
@@ -929,12 +887,9 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 		ret = do_verify(msc, len);
 		if (ret < 0)
 			goto err;
+
 		report_progress(msc, MSC_TEST_SG_RANDOM_READ);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_RANDOM_READ);
 
 err:
 	return ret;
@@ -970,12 +925,9 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 		} else {
 			ret = 0;
 		}
+
 		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_WRITE_PAST_LAST);
 
 err:
 	return ret;
@@ -1000,12 +952,9 @@ static int do_test_lseek_past_last(struct usb_msc_test *msc)
 			ret = -EINVAL;
 			goto err;
 		}
+
 		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_LSEEK_PAST_LAST);
 
 err:
 	return ret;
@@ -1039,12 +988,9 @@ static int do_test_read_past_last(struct usb_msc_test *msc)
 			ret = -EINVAL;
 			goto err;
 		}
+
 		report_progress(msc, MSC_TEST_READ_PAST_LAST);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_READ_PAST_LAST);
 
 err:
 	return ret;
@@ -1114,10 +1060,6 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_128SECT);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_128SECT);
-
 err:
 	return ret;
 }
@@ -1185,10 +1127,6 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 
 		report_progress(msc, MSC_TEST_SG_64SECT);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_64SECT);
 
 err:
 	return ret;
@@ -1258,10 +1196,6 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_32SECT);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_32SECT);
-
 err:
 	return ret;
 }
@@ -1329,10 +1263,6 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 
 		report_progress(msc, MSC_TEST_SG_8SECT);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_8SECT);
 
 err:
 	return ret;
@@ -1402,10 +1332,6 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_SG_2SECT);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SG_2SECT);
-
 err:
 	return ret;
 }
@@ -1455,10 +1381,6 @@ static int do_test_64sect(struct usb_msc_test *msc)
 
 		report_progress(msc, MSC_TEST_64SECT);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_64SECT);
 
 err:
 	return ret;
@@ -1510,10 +1432,6 @@ static int do_test_32sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_32SECT);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_32SECT);
-
 err:
 	return ret;
 }
@@ -1563,10 +1481,6 @@ static int do_test_8sect(struct usb_msc_test *msc)
 
 		report_progress(msc, MSC_TEST_8SECT);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_8SECT);
 
 err:
 	return ret;
@@ -1618,10 +1532,6 @@ static int do_test_1sect(struct usb_msc_test *msc)
 		report_progress(msc, MSC_TEST_1SECT);
 	}
 
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_1SECT);
-
 err:
 	return ret;
 }
@@ -1654,7 +1564,6 @@ static int do_test_simple(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - msc->size, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: can't lseek\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1671,10 +1580,6 @@ static int do_test_simple(struct usb_msc_test *msc)
 
 		report_progress(msc, MSC_TEST_SIMPLE);
 	}
-
-	msc->read_tput /= msc->count;
-	msc->write_tput /= msc->count;
-	report_throughput(msc, MSC_TEST_SIMPLE);
 
 err:
 	return ret;
@@ -1967,9 +1872,10 @@ int main(int argc, char *argv[])
 	 * sync before starting any test in order to get more
 	 * reliable results out of the tests
 	 */
-	fsync(msc->fd);
+	sync();
 
 	ret = do_test(msc, test);
+
 	if (ret < 0) {
 		DBG("%s: test failed\n", __func__);
 		goto err3;
