@@ -247,10 +247,10 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 		if (show_tput) {
 			msc->read_tput /= msc->count;
 			msc->write_tput /= msc->count;
-			printf("\rtest %d: sent %10.04f %sB read %10.02f MB/s write %10.02f MB/s ... ",
+			printf("\rtest %2d: sent %10.02f %sB read %10.02f MB/s write %10.02f MB/s ... ",
 					test, transferred, unit, msc->read_tput, msc->write_tput);
 		} else {
-			printf("\rtest %d: sent %10.04f %sB read            MB/s write            MB/s ... ",
+			printf("\rtest %2d: sent %10.02f %sB read            MB/s write            MB/s ... ",
 					test, transferred, unit);
 		}
 
