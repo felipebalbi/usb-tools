@@ -46,7 +46,7 @@ QUIET_TAGS	= $(Q:@=@echo    '     TAGS     '$@;)
 
 all: usb rt pthread generic cross
 
-usb: companion-desc testmode cleware control
+usb: companion-desc testmode cleware control device-reset
 
 rt: msc
 
@@ -68,6 +68,12 @@ testmode: testmode.o
 	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
 
 testmode.o: testmode.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+device-reset: device-reset.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
+
+device-reset.o: device-reset.c
 	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
 
 cleware: cleware.o
@@ -143,6 +149,18 @@ switchbox.o: switchbox.c
 # cleaning
 
 clean:
-	$(QUIET_CLEAN) rm -f *.o cleware msc serialc seriald testusb acmc \
-		acmd testmode switchbox control companion-desc
+	$(QUIET_CLEAN) rm -f	\
+		*.o		\
+		acmc		\
+		acmd		\
+		cleware		\
+		companion-desc	\
+		control		\
+		device-reset	\
+		msc		\
+		serialc		\
+		seriald		\
+		switchbox	\
+		testmode	\
+		testusb
 
