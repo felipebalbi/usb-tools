@@ -21,14 +21,16 @@
 
 CROSS_COMPILE = arm-linux-
 CC = gcc
-CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
-	-I/usr/include -I/usr/include/libusb-1.0	\
-	-D_GNU_SOURCE
-LIBUSB= -lusb-1.0
-LIBPTHREAD= -lpthread
-LIBRT= -lrt
+GENERIC_CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
+		 -D_GNU_SOURCE
 
-PROGRAMS = cleware msc serialc
+LIBUSB_CFLAGS = $(shell pkg-config --cflags libusb-1.0)
+LIBUSB_LIBS = $(shell pkg-config --libs libusb-1.0)
+
+LIBPTHREAD_LIBS = -lpthread
+LIBRT_LIBS = -lrt
+
+CFLAGS = $(GENERIC_CFLAGS) $(LIBUSB_CFLAGS)
 
 #
 # Pretty print
@@ -41,34 +43,34 @@ QUIET_CLEAN   = $(Q:@=@echo    '     CLEAN    '$@;)
 all: cleware msc serialc seriald testusb acmc acmd testmode switchbox companion-desc control
 
 companion-desc:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
 
 testmode:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
 
 cleware:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
 
 serialc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
 
 control:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
 
 acmc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
 
 acmd:
-	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
+	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -o $@ $@.c
 
 msc:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBRT) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBRT_LIBS) -o $@ $@.c
 
 seriald:
-	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $@ $@.c
+	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -o $@ $@.c
 
 testusb:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD) -o $@ $@.c
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD_LIBS) -o $@ $@.c
 
 switchbox:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
