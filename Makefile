@@ -22,7 +22,8 @@
 CROSS_COMPILE = arm-linux-
 CC = gcc
 CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
-	 -D_GNU_SOURCE
+	-I/usr/include -I/usr/include/libusb-1.0	\
+	-D_GNU_SOURCE
 LIBUSB= -lusb-1.0
 LIBPTHREAD= -lpthread
 LIBRT= -lrt
@@ -37,7 +38,7 @@ Q             = $(V:1=)
 QUIET_CC      = $(Q:@=@echo    '     CC       '$@;)
 QUIET_CLEAN   = $(Q:@=@echo    '     CLEAN    '$@;)
 
-all: cleware msc serialc seriald testusb acmc acmd testmode switchbox companion-desc
+all: cleware msc serialc seriald testusb acmc acmd testmode switchbox companion-desc control
 
 companion-desc:
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
@@ -50,6 +51,9 @@ cleware:
 
 serialc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+
+control:
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB) -o $@ $@.c
 
 acmc:
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
