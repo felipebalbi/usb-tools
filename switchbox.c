@@ -2,7 +2,7 @@
 /**
  * switchbox.c - Server for u_serial verification
  *
- * Copyright (C) 2009 Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright (C) 2009-2013 Felipe Balbi <balbi@ti.com>
  *
  * This file is part of the USB Verification Tools Project
  *

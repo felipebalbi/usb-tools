@@ -2,7 +2,7 @@
 /**
  * cleware.c - Cleware USB-Controlled Power Switch
  *
- * Copyright (C) 2010 Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright (C) 2010-2013 Felipe Balbi <balbi@ti.com>
  *
  * This file is part of the USB Verification Tools Project
  *

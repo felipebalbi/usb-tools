@@ -2,7 +2,7 @@
 /**
  * companion-desc.c - Enter USB testmodes
  *
- * Copyright (C) 2010 Felipe Balbi <balbi@ti.com>
+ * Copyright (C) 2010-2013 Felipe Balbi <balbi@ti.com>
  *
  * This file is part of the USB Verification Tools Project
  *
