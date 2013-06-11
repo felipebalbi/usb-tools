@@ -35,46 +35,114 @@ CFLAGS = $(GENERIC_CFLAGS) $(LIBUSB_CFLAGS)
 #
 # Pretty print
 #
-V             = @
-Q             = $(V:1=)
-QUIET_CC      = $(Q:@=@echo    '     CC       '$@;)
-QUIET_CLEAN   = $(Q:@=@echo    '     CLEAN    '$@;)
+V		= @
+Q		= $(V:1=)
+QUIET_CC	= $(Q:@=@echo    '     CC       '$@;)
+QUIET_CLEAN	= $(Q:@=@echo    '     CLEAN    '$@;)
+QUIET_AR	= $(Q:@=@echo    '     AR       '$@;)
+QUIET_GEN	= $(Q:@=@echo    '     GEN      '$@;)
+QUIET_LINK	= $(Q:@=@echo    '     LINK     '$@;)
+QUIET_TAGS	= $(Q:@=@echo    '     TAGS     '$@;)
 
-all: cleware msc serialc seriald testusb acmc acmd testmode switchbox companion-desc control
+all: usb rt pthread generic cross
 
-companion-desc:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
+usb: companion-desc testmode cleware control
 
-testmode:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
+rt: msc
 
-cleware:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
+pthread: testusb
 
-serialc:
-	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+generic: serialc acmc switchbox
 
-control:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBUSB_LIBS) -o $@ $@.c
+cross: seriald acmd
 
-acmc:
-	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+# Tools which need libusb-1.0 go here
 
-acmd:
-	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -o $@ $@.c
+companion-desc: companion-desc.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
 
-msc:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBRT_LIBS) -o $@ $@.c
+companion-desc.o: companion-desc.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
 
-seriald:
-	$(QUIET_CC)$(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -o $@ $@.c
+testmode: testmode.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
 
-testusb:
-	$(QUIET_CC)$(CC) $(CFLAGS) $(LIBPTHREAD_LIBS) -o $@ $@.c
+testmode.o: testmode.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
 
-switchbox:
-	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ $@.c
+cleware: cleware.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
+
+cleware.o: cleware.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+control: control.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
+
+control.o: control.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+serialc: serialc.o
+	$(QUIET_LINK) $(CC) $(LIBUSB_LIBS) $< -o $@
+
+serialc.o: serialc.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+
+
+# Tools which need cross-compilation go here
+
+seriald: seriald.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) $< -o $@
+
+seriald.o: seriald.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -c $< -o $@
+
+acmd: acmd.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) $< -o $@
+
+acmd.o: acmd.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $(GENERIC_CFLAGS) -c $< -o $@
+
+
+
+# Tools which need libpthread go here
+
+testusb: testusb.o
+	$(QUIET_LINK) $(CC) $(CFLAGS) $(LIBPTHREAD_LIBS) $< -o $@
+
+testusb.o: testusb.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+
+
+# Tools which need librt go here
+
+msc: msc.o
+	$(QUIET_LINK) $(CC) $(CFLAGS) $(LIBRT_LIBS) $< -o $@
+
+msc.o: msc.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+
+
+# Tools which don't have special requirements go here
+
+acmc: acmc.o
+	$(QUIET_LINK) $(CC) $(CFLAGS) $< -o $@
+
+acmc.o: acmc.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+switchbox: switchbox.o
+	$(QUIET_LINK) $(CC) $(CFLAGS) $< -o $@
+
+switchbox.o: switchbox.c
+	$(QUIET_CC) $(CC) $(CFLAGS) -c $< -o $@
+
+# cleaning
 
 clean:
-	$(QUIET_CLEAN) rm -f cleware msc serialc seriald testusb acmc acmd testmode switchbox
+	$(QUIET_CLEAN) rm -f *.o cleware msc serialc seriald testusb acmc \
+		acmd testmode switchbox control companion-desc
 
