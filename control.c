@@ -81,13 +81,15 @@ static int send_control_message(libusb_device_handle *udevh, uint8_t bmRequestTy
 		uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength)
 
 {
-	unsigned char *buf;
+	unsigned char *buf = NULL;
 	int ret;
 
-	buf = malloc(wLength);
-	if (!buf) {
-		fprintf(stderr, "Couldn't allocate buffer\n");
-		return -1;
+	if (wLength) {
+		buf = malloc(wLength);
+		if (!buf) {
+			fprintf(stderr, "Couldn't allocate buffer\n");
+			return -1;
+		}
 	}
 
 	ret = libusb_control_transfer(udevh, bmRequestType, bRequest, wValue,
@@ -183,6 +185,11 @@ int main(int argc, char *argv[])
 		ret = -ENODEV;
 		goto out;
 	}
+
+	libusb_set_auto_detach_kernel_driver(udevh, 1);
+
+	if (bmRequestType == 0x01 && bRequest == 0x0b)
+		libusb_claim_interface(udevh, wIndex);
 
 	for (i = count; i; --i) {
 		ret = send_control_message(udevh, bmRequestType, bRequest, wValue,
