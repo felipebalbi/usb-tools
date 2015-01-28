@@ -24,6 +24,8 @@ CC = gcc
 GENERIC_CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
 		 -D_GNU_SOURCE
 
+PREFIX ?= /usr
+
 LIBUSB_CFLAGS = $(shell pkg-config --cflags libusb-1.0)
 LIBUSB_LIBS = $(shell pkg-config --libs libusb-1.0)
 
@@ -37,14 +39,39 @@ CFLAGS = $(GENERIC_CFLAGS) $(LIBUSB_CFLAGS)
 #
 V		= @
 Q		= $(V:1=)
+QUIET_AR	= $(Q:@=@echo    '     AR       '$@;)
 QUIET_CC	= $(Q:@=@echo    '     CC       '$@;)
 QUIET_CLEAN	= $(Q:@=@echo    '     CLEAN    '$@;)
-QUIET_AR	= $(Q:@=@echo    '     AR       '$@;)
 QUIET_GEN	= $(Q:@=@echo    '     GEN      '$@;)
+QUIET_INSTALL	= $(Q:@=@echo    '     INSTALL  '$@;)
 QUIET_LINK	= $(Q:@=@echo    '     LINK     '$@;)
 QUIET_TAGS	= $(Q:@=@echo    '     TAGS     '$@;)
 
+BINARIES = acmc			\
+	   acmd			\
+	   cleware		\
+	   companion-desc	\
+	   control		\
+	   device-reset		\
+	   msc			\
+	   msc.sh		\
+	   pingtest		\
+	   scptest.sh		\
+	   serialc		\
+	   seriald		\
+	   switchbox		\
+	   test.sh		\
+	   testmode		\
+	   testusb		\
+	   usbpwrtest
+
 all: usb rt pthread generic
+
+install: all
+	$(QUIET_INSTALL) install -m 755 -t $(PREFIX)/bin/ $(BINARIES)
+
+uninstall:
+	$(foreach file,$(BINARIES), rm -f $(PREFIX)/bin/$(file))
 
 usb: companion-desc testmode cleware control device-reset
 
