@@ -44,7 +44,7 @@ QUIET_GEN	= $(Q:@=@echo    '     GEN      '$@;)
 QUIET_LINK	= $(Q:@=@echo    '     LINK     '$@;)
 QUIET_TAGS	= $(Q:@=@echo    '     TAGS     '$@;)
 
-all: usb rt pthread generic cross
+all: usb rt pthread generic
 
 usb: companion-desc testmode cleware control device-reset
 
@@ -52,9 +52,7 @@ rt: msc
 
 pthread: testusb
 
-generic: serialc acmc switchbox
-
-cross: seriald acmd
+generic: serialc acmc switchbox seriald acmd
 
 # Tools which need libusb-1.0 go here
 
@@ -94,20 +92,10 @@ serialc: serialc.o
 serialc.o: serialc.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
-
-
-# Tools which need cross-compilation go here
-
 seriald: seriald.o
 	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
 
 seriald.o: seriald.c
-	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
-
-acmd: acmd.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
-
-acmd.o: acmd.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
 
 
@@ -145,6 +133,12 @@ switchbox: switchbox.o
 
 switchbox.o: switchbox.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
+
+acmd: acmd.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
+
+acmd.o: acmd.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
 
 # cleaning
 
