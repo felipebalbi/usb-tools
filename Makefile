@@ -19,7 +19,7 @@
 # along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
 ##
 
-CROSS_COMPILE = arm-linux-
+CROSS_COMPILE ?=
 CC = gcc
 GENERIC_CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
 		 -D_GNU_SOURCE
@@ -59,40 +59,40 @@ cross: seriald acmd
 # Tools which need libusb-1.0 go here
 
 companion-desc: companion-desc.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 companion-desc.o: companion-desc.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 testmode: testmode.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 testmode.o: testmode.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 device-reset: device-reset.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 device-reset.o: device-reset.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 cleware: cleware.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 cleware.o: cleware.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 control: control.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 control.o: control.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 serialc: serialc.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(LIBUSB_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 serialc.o: serialc.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 
 
@@ -115,36 +115,36 @@ acmd.o: acmd.c
 # Tools which need libpthread go here
 
 testusb: testusb.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(CFLAGS) $(LIBPTHREAD_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBPTHREAD_LIBS)
 
 testusb.o: testusb.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 
 
 # Tools which need librt go here
 
 msc: msc.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(CFLAGS) $(LIBRT_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBRT_LIBS)
 
 msc.o: msc.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 
 
 # Tools which don't have special requirements go here
 
 acmc: acmc.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(CFLAGS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS)
 
 acmc.o: acmc.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 switchbox: switchbox.o
-	$(QUIET_LINK) $(CC) $< -o $@ $(CFLAGS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS)
 
 switchbox.o: switchbox.c
-	$(QUIET_CC) $(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 # cleaning
 
