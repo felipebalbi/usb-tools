@@ -24,7 +24,7 @@ CC = gcc
 GENERIC_CFLAGS = -Wall -O3 -g -finline-functions -fno-strict-aliasing \
 		 -D_GNU_SOURCE
 
-PREFIX ?= /usr
+PREFIX ?= /usr/local
 
 LIBUSB_CFLAGS = $(shell pkg-config --cflags libusb-1.0)
 LIBUSB_LIBS = $(shell pkg-config --libs libusb-1.0)
