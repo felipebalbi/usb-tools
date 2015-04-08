@@ -51,12 +51,12 @@ static struct timespec		start;
 static struct timespec		end;
 
 /* different buffers */
-static char			*txbuf_heap;
-static char			*rxbuf_heap;
+static unsigned char		*txbuf_heap;
+static unsigned char		*rxbuf_heap;
 
 /* stack allocated buffers aligned in page size */
-static char	txbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
-static char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
+static unsigned char	txbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
+static unsigned char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -85,8 +85,8 @@ struct usb_msc_test {
 
 	off_t		offset;		/* current offset */
 
-	char		*txbuf;		/* send buffer */
-	char		*rxbuf;		/* receive buffer*/
+	unsigned char	*txbuf;		/* send buffer */
+	unsigned char	*rxbuf;		/* receive buffer*/
 	char		*output;	/* writing to... */
 };
 
@@ -148,7 +148,7 @@ static char	*units[] = {
  */
 static void init_buffer(struct usb_msc_test *msc)
 {
-	char			*buf = msc->txbuf;
+	unsigned char		*buf = msc->txbuf;
 
 	memset(buf, 0x55, msc->size);
 	memset(txbuf_stack, 0x55, msc->size);
@@ -158,9 +158,9 @@ static void init_buffer(struct usb_msc_test *msc)
  * alloc_buffer - allocates a @size buffer
  * @size:	Size of buffer
  */
-static char *alloc_buffer(unsigned size)
+static unsigned char *alloc_buffer(unsigned size)
 {
-	char			*tmp;
+	unsigned char		*tmp;
 
 	if (size == 0) {
 		DBG("%s: cannot allocate a zero sized buffer\n", __func__);
@@ -270,7 +270,7 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 	int			done = 0;
 	int			ret = -EINVAL;
 
-	char			*buf = msc->txbuf;
+	unsigned char		*buf = msc->txbuf;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	while (done < bytes) {
@@ -327,7 +327,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 	int			done = 0;
 	int			ret;
 
-	char			*buf = msc->rxbuf;
+	unsigned char		*buf = msc->rxbuf;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	while (done < bytes) {
@@ -595,8 +595,8 @@ static int do_test_read_diff_buf(struct usb_msc_test *msc)
  */
 static int do_test_sg_random_both(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
@@ -722,8 +722,8 @@ err:
  */
 static int do_test_sg_random_write(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
@@ -821,8 +821,8 @@ err:
  */
 static int do_test_sg_random_read(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		sect_size = msc->sect_size;
 	unsigned		len = msc->size;
@@ -1026,8 +1026,8 @@ err:
  */
 static int do_test_sg_128sect(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		len = 128 * msc->sect_size;
 
@@ -1096,8 +1096,8 @@ err:
  */
 static int do_test_sg_64sect(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		len = 64 * msc->sect_size;
 
@@ -1166,8 +1166,8 @@ err:
  */
 static int do_test_sg_32sect(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		len = 32 * msc->sect_size;
 
@@ -1236,8 +1236,8 @@ err:
  */
 static int do_test_sg_8sect(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		len = 8 * msc->sect_size;
 
@@ -1306,8 +1306,8 @@ err:
  */
 static int do_test_sg_2sect(struct usb_msc_test *msc)
 {
-	char			*txbuf = msc->txbuf;
-	char			*rxbuf = msc->rxbuf;
+	unsigned char		*txbuf = msc->txbuf;
+	unsigned char		*rxbuf = msc->rxbuf;
 
 	unsigned		len = 2 * msc->sect_size;
 
