@@ -36,6 +36,8 @@
 #include <sys/mount.h>
 #include <sys/uio.h>
 
+#include <openssl/sha.h>
+
 #define __maybe_unused		__attribute__((unused))
 
 #define BUFLEN			65536
@@ -374,16 +376,19 @@ static void __maybe_unused hexdump(char *buf, unsigned size)
  */
 static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 {
-	int			i;
+	unsigned char		tx_hash[SHA_DIGEST_LENGTH];
+	unsigned char		rx_hash[SHA_DIGEST_LENGTH];
+	unsigned char		*ret;
 
-	for (i = 0; i < bytes; i++)
-		if (msc->txbuf[i] != msc->rxbuf[i]) {
-			ERR("%s: byte %d failed [TX %02x RX %02x]\n", __func__,
-					i, msc->txbuf[i], msc->rxbuf[i]);
-			return -EINVAL;
-		}
+	ret = SHA1(msc->txbuf, bytes, tx_hash);
+	if (!ret)
+		return -EINVAL;
 
-	return 0;
+	ret = SHA1(msc->rxbuf, bytes, rx_hash);
+	if (!ret)
+		return -EINVAL;
+
+	return strncmp((char *) tx_hash, (char *) rx_hash, SHA_DIGEST_LENGTH);
 }
 
 /**

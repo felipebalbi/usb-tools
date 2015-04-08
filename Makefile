@@ -31,6 +31,7 @@ LIBUSB_LIBS = $(shell pkg-config --libs libusb-1.0)
 
 LIBPTHREAD_LIBS = -lpthread
 LIBRT_LIBS = -lrt
+LIBSSL_LIBS = -lssl -lcrypto
 
 CFLAGS = $(GENERIC_CFLAGS) $(LIBUSB_CFLAGS)
 
@@ -140,7 +141,7 @@ testusb.o: testusb.c
 # Tools which need librt go here
 
 msc: msc.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBRT_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBRT_LIBS) $(LIBSSL_LIBS)
 
 msc.o: msc.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
