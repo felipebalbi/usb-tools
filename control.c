@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
 	uint8_t			bmRequestType = 0;
 	uint8_t			bRequest = 0;
 
+	int			reattach_kernel_driver = 0;
 	int			ret = 0;
 	int			i;
 
@@ -186,9 +187,12 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	libusb_set_auto_detach_kernel_driver(udevh, 1);
+	if (libusb_kernel_driver_active(udevh, wIndex)) {
+		libusb_detach_kernel_driver(udevh, wIndex);
+		reattach_kernel_driver = 1;
+	}
 
-	if (bmRequestType == 0x01 && bRequest == 0x0b)
+	if (bmRequestType == 0x01 || bmRequestType == 0x81)
 		libusb_claim_interface(udevh, wIndex);
 
 	for (i = count; i; --i) {
@@ -197,6 +201,9 @@ int main(int argc, char *argv[])
 		if (ret < 0)
 			break;
 	}
+
+	if (reattach_kernel_driver)
+		libusb_attach_kernel_driver(udevh, wIndex);
 
 	libusb_close(udevh);
 
