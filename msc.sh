@@ -179,49 +179,49 @@ msc -t 17 -o $OUTPUT -s 65536 -c $COUNT -b stack
 printf "test 18a: write 0x00 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 0
 
-printf "test 18b: write 0xff and read it back			\n"
+printf "test 18b: write 0x11 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 1
 
-printf "test 18c: write 0x55 and read it back			\n"
+printf "test 18c: write 0x22 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 2
 
-printf "test 18d: write 0xaa and read it back			\n"
+printf "test 18d: write 0x33 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 3
 
-printf "test 18e: write 0x11 and read it back			\n"
+printf "test 18e: write 0x44 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 4
 
-printf "test 18f: write 0x22 and read it back			\n"
+printf "test 18f: write 0x55 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 5
 
-printf "test 18g: write 0x44 and read it back			\n"
+printf "test 18g: write 0x66 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 6
 
-printf "test 18h: write 0x88 and read it back			\n"
+printf "test 18h: write 0x77 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 7
 
-printf "test 18i: write 0x33 and read it back			\n"
+printf "test 18i: write 0x88 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 8
 
-printf "test 18j: write 0x66 and read it back			\n"
+printf "test 18j: write 0x99 and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 9
 
-printf "test 18k: write 0x99 and read it back			\n"
+printf "test 18k: write 0xaa and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 10
 
-printf "test 18l: write 0xcc and read it back			\n"
+printf "test 18l: write 0xbb and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 11
 
-printf "test 18m: write 0x77 and read it back			\n"
+printf "test 18m: write 0xcc and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 12
 
-printf "test 18n: write 0xbb and read it back			\n"
+printf "test 18n: write 0xdd and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 13
 
-printf "test 18o: write 0xdd and read it back			\n"
+printf "test 18o: write 0xee and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 14
 
-printf "test 18p: write 0xee and read it back			\n"
+printf "test 18p: write 0xff and read it back			\n"
 msc -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 15
 
 printf "Test suite ended: $(date)\n"
