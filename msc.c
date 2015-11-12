@@ -1728,6 +1728,7 @@ static void usage(char *prog)
 			--count, -c		Iteration count\n\
 			--buffer-type, -b	Buffer type (stack | heap)\n\
 			--debug, -d		Enables debugging messages\n\
+			--dsync, -n		Enables O_DSYNC\n\
 			--pattern, -p		Pattern chosen\n\
 			--help, -h		This help\n", prog);
 }
@@ -1768,6 +1769,10 @@ static struct option msc_opts[] = {
 		.val		= 'd',
 	},
 	{
+		.name		= "dsync",
+		.val		= 'n',
+	},
+	{
 		.name		= "help",
 		.val		= 'h',
 	},
@@ -1784,6 +1789,7 @@ int main(int argc, char *argv[])
 	unsigned		size = 0;
 	unsigned		count = 100; /* 100 loops by default */
 	unsigned		type = MSC_BUFFER_HEAP;
+	int			flags = O_RDWR | O_DIRECT;
 	int			ret = 0;
 
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
@@ -1794,7 +1800,7 @@ int main(int argc, char *argv[])
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:p:b:dh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:dnh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1834,6 +1840,9 @@ int main(int argc, char *argv[])
 				DBG("%s: invalid parameter\n", __func__);
 				goto err0;
 			}
+			break;
+		case 'n':
+			flags |= O_DSYNC;
 			break;
 		case 'p':
 			pattern = atoi(optarg);
@@ -1894,7 +1903,7 @@ int main(int argc, char *argv[])
 
 	DBG("%s: opening %s\n", __func__, output);
 
-	msc->fd = open(output, O_RDWR | O_DIRECT);
+	msc->fd = open(output, flags);
 	if (msc->fd < 0) {
 		DBG("%s: could not open %s\n", __func__, output);
 		goto err2;
