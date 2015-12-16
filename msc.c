@@ -162,15 +162,16 @@ static void init_buffer(struct usb_msc_test *msc)
  */
 static unsigned char *alloc_buffer(unsigned size)
 {
-	unsigned char		*tmp;
+	void			*tmp;
+	int			ret;
 
 	if (size == 0) {
 		DBG("%s: cannot allocate a zero sized buffer\n", __func__);
 		return NULL;
 	}
 
-	tmp = memalign(getpagesize(), size);
-	if (!tmp)
+	ret = posix_memalign(&tmp, getpagesize(), size);
+	if (ret)
 		return NULL;
 
 	return tmp;
