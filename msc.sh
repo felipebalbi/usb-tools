@@ -68,6 +68,18 @@ msc -n -t 0 -o $OUTPUT -s 32768 -c $COUNT
 printf "test 0e: simple 64k read/write				\n"
 msc -n -t 0 -o $OUTPUT -s 65536 -c $COUNT
 
+printf "test 0f: simple 128k read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 131072 -c $COUNT
+
+printf "test 0g: simple 256k read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 262144 -c $COUNT
+
+printf "test 0h: simple 512k read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 524288 -c $COUNT
+
+printf "test 0i: simple 1M read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 1048576 -c $COUNT
+
 # 1-sector read/write
 printf "test 1: simple 1-sector read/write			\n"
 msc -n -t 1 -o $OUTPUT -s 65536 -c $COUNT
