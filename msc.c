@@ -1936,7 +1936,9 @@ int main(int argc, char *argv[])
 	 * sync before starting any test in order to get more
 	 * reliable results out of the tests
 	 */
-	sync();
+	ret = fsync(msc->fd);
+	if (ret)
+		goto err3;
 
 	ret = do_test(msc, test);
 
