@@ -112,6 +112,18 @@ msc -n -t 5 -o $OUTPUT -s 32768 -c $COUNT
 printf "test 5e: scatter/gather for 2-sectors buflen 64k	\n"
 msc -n -t 5 -o $OUTPUT -s 65536 -c $COUNT
 
+printf "test 5f: scatter/gather for 2-sectors buflen 128k	\n"
+msc -n -t 5 -o $OUTPUT -s 131072 -c $COUNT
+
+printf "test 5g: scatter/gather for 2-sectors buflen 256k	\n"
+msc -n -t 5 -o $OUTPUT -s 262144 -c $COUNT
+
+printf "test 5h: scatter/gather for 2-sectors buflen 512k	\n"
+msc -n -t 5 -o $OUTPUT -s 524288 -c $COUNT
+
+printf "test 5i: scatter/gather for 2-sectors buflen 1M		\n"
+msc -n -t 5 -o $OUTPUT -s 1048576 -c $COUNT
+
 # SG 8-sectors read/write
 printf "test 6a: scatter/gather for 8-sectors buflen 4k		\n"
 msc -n -t 6 -o $OUTPUT -s 4096 -c $COUNT
@@ -127,6 +139,18 @@ msc -n -t 6 -o $OUTPUT -s 32768 -c $COUNT
 
 printf "test 6e: scatter/gather for 8-sectors buflen 64k	\n"
 msc -n -t 6 -o $OUTPUT -s 65536 -c $COUNT
+
+printf "test 6f: scatter/gather for 8-sectors buflen 128k	\n"
+msc -n -t 6 -o $OUTPUT -s 131072 -c $COUNT
+
+printf "test 6g: scatter/gather for 8-sectors buflen 256k	\n"
+msc -n -t 6 -o $OUTPUT -s 262144 -c $COUNT
+
+printf "test 6h: scatter/gather for 8-sectors buflen 512k	\n"
+msc -n -t 6 -o $OUTPUT -s 524288 -c $COUNT
+
+printf "test 6i: scatter/gather for 8-sectors buflen 1M		\n"
+msc -n -t 6 -o $OUTPUT -s 1048576 -c $COUNT
 
 # SG 32-sectors read/write
 printf "test 7a: scatter/gather for 32-sectors buflen 16k	\n"
@@ -144,6 +168,18 @@ msc -n -t 8 -o $OUTPUT -s 32768 -c $COUNT
 
 printf "test 8b: scatter/gather for 64-sectors buflen 64k	\n"
 msc -n -t 8 -o $OUTPUT -s 65536 -c $COUNT
+
+printf "test 8c: scatter/gather for 64-sectors buflen 128k	\n"
+msc -n -t 8 -o $OUTPUT -s 131072 -c $COUNT
+
+printf "test 8d: scatter/gather for 64-sectors buflen 256k	\n"
+msc -n -t 8 -o $OUTPUT -s 262144 -c $COUNT
+
+printf "test 8e: scatter/gather for 64-sectors buflen 512k	\n"
+msc -n -t 8 -o $OUTPUT -s 524288 -c $COUNT
+
+printf "test 8f: scatter/gather for 64-sectors buflen 1M	\n"
+msc -n -t 8 -o $OUTPUT -s 1048576 -c $COUNT
 
 # SG 128-sectors read/write
 printf "test 9: scatter/gather for 128-sectors buflen 64k	\n"
