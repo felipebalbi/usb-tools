@@ -150,9 +150,7 @@ static char	*units[] = {
  */
 static void init_buffer(struct usb_msc_test *msc)
 {
-	unsigned char		*buf = msc->txbuf;
-
-	memset(buf, 0x55, msc->size);
+	memset(txbuf_heap, 0x55, msc->size);
 	memset(txbuf_stack, 0x55, msc->size);
 }
 
