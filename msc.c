@@ -40,7 +40,7 @@
 
 #define __maybe_unused		__attribute__((unused))
 
-#define BUFLEN			65536
+#define BUFLEN			1048576
 #define PAGE_SIZE		4096
 
 #define false	0
