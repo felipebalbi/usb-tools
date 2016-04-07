@@ -1825,6 +1825,13 @@ int main(int argc, char *argv[])
 				goto err0;
 			}
 
+			if (size > BUFLEN) {
+				DBG("%s: can't allocate more than 1MiB\n",
+						__func__);
+				ret = -EINVAL;
+				goto err0;
+			}
+
 			if (size % getpagesize()) {
 				DBG("%s: unaligned size (pagesize=%d)\n",
 						__func__, getpagesize());
