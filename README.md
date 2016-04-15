@@ -52,7 +52,7 @@ Then connect the cable to the host and run test.sh:
 
 If, on the other hand, you're trying to exercise a new USB Peripheral
 controller, we need a Host controller which we can assume to be working,
-like EHCI or xHCI[1], and load g_zero.ko:
+like EHCI or xHCI (see Notes section below), and load g_zero.ko:
 
 ```
 # modprobe g_zero
@@ -126,7 +126,13 @@ TODO
 
 ## pingtest/scptest.sh
 
-[1] at the time of this writing, Linux Kernel v4.6 or before is known to
+TODO
+
+## Notes
+
+### xHCI
+
+At the time of this writing, Linux Kernel v4.6 or before is known to
 have a buggy xHCI ring implementation which doesn't guarantee some
 alignment conditions and, because of that, some tests in testusb hang
 with xHCI. Situation is supposed to change in coming Linux Kernel
