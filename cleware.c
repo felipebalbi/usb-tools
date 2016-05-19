@@ -364,9 +364,10 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 	return 0;
 }
 
-static int get_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
+static int get_switch(libusb_device_handle *udevh, unsigned port)
 {
 	int			transferred;
+	int			state = 0;
 	int			ret;
 	unsigned char		data[6];
 
@@ -382,8 +383,9 @@ static int get_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 		return -1;
 	}
 
-	if (!!(data[0] & (1 << port)) == on)
-		fprintf(stdout, "%d: %s\n", port, on ? "ON" : "OFF");
+	state = (data[0] & (1 << port));
+
+	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
 
 	return 0;
 }
@@ -417,7 +419,7 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 		}
 	}
 
-	ret = get_switch(udevh, port -1, on);
+	ret = get_switch(udevh, port -1);
 	if (ret < 0)
 		return ret;
 
@@ -427,6 +429,7 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 static void usage(char *name)
 {
 	fprintf(stdout, "usage: %s [-0 | -1] [-s SerialNumber] [-d] [-h]\n\
+			-r, --read		Read switch state\n\
 			-0, --off		Switch it off\n\
 			-1, --on		Switch it on\n\
 			-s, --serial-number	Device's serial number\n\
@@ -465,6 +468,7 @@ int main(int argc, char *argv[])
 
 	ssize_t			count;
 
+	int			read = 0;
 	int			ret = 0;
 	int			on = 0;
 
@@ -472,7 +476,7 @@ int main(int argc, char *argv[])
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "l01p:s:dh", cleware_opts, &optidx);
+		opt = getopt_long(argc, argv, "l01rp:s:dh", cleware_opts, &optidx);
 		if (opt < 0)
 			break;
 
@@ -488,6 +492,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			port = atoi(optarg);
+			break;
+		case 'r':
+			read = 1;
 			break;
 		case 's':
 			iSerial = strtoul(optarg, NULL, 16);
@@ -532,11 +539,17 @@ int main(int argc, char *argv[])
 		goto out2;
 	}
 
-	ret = set_power(udevh, port, on);
-	if (ret < 0) {
-		DBG("%s: couldn't switch power %s\n", __func__,
-				on ? "on" : "off");
-		goto out3;
+	if (read) {
+		ret = get_switch(udevh, port - 1);
+		if (ret < 0)
+			goto out3;
+	} else {
+		ret = set_power(udevh, port, on);
+		if (ret < 0) {
+			DBG("%s: couldn't switch power %s\n", __func__,
+					on ? "on" : "off");
+			goto out3;
+		}
 	}
 
 out3:
