@@ -42,3 +42,11 @@ GTAGS
 *.orig
 *~
 \#*#
+/acmc
+/acmd
+/companion-desc
+/testusb
+/control
+/device-reset
+/switchbox
+/testmode
