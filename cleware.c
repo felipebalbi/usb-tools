@@ -32,6 +32,9 @@
 #define HID_SET_REPORT	0x09
 #define HID_GET_REPORT	0x01
 
+#define HID_REPORT_OUT	0x02
+#define HID_REPORT_IN	0x01
+
 /*
  * this application is known to work with the following
  * device:
@@ -45,6 +48,8 @@
 
 #define CLEWARE_TYPE_SWITCH	0x00
 #define CLEWARE_TYPE_CONTACT	0x03
+
+#define CLEWARE_INT_IN_EP (LIBUSB_ENDPOINT_IN | 1)
 
 struct usb_device_id {
 	unsigned		idVendor;
@@ -322,17 +327,21 @@ static void release_interface(libusb_device_handle *udevh)
 static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
 {
 	unsigned char		data[3];
+	unsigned char		length = 3;
 
 	data[0] = 0x00;
 	data[1] = led;
 	data[2] = on ? 0x00 : 0x0f;
 
-	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-			data, sizeof(data), TIMEOUT);
+	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
+			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
+			HID_SET_REPORT, HID_REPORT_OUT << 8, 0x00, data,
+			length, TIMEOUT);
 }
 
 static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
+	int			ret;
 	unsigned char		data[5];
 	unsigned char		length = 3;
 
@@ -346,9 +355,37 @@ static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 		length = 5;
 	}
 
-	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
+	ret =  libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
 			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-			HID_SET_REPORT, 0x200, 0x00, data, length, TIMEOUT);
+			HID_SET_REPORT, HID_REPORT_OUT << 8, 0x00, data,
+			length, TIMEOUT);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+static int get_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
+{
+	int			transferred;
+	int			ret;
+	unsigned char		data[6];
+
+	ret = libusb_interrupt_transfer(udevh, CLEWARE_INT_IN_EP, data, 6,
+			&transferred, TIMEOUT);;
+	if (ret < 0) {
+		fprintf(stderr, "Failed to get report --> %d\n", ret);
+		return ret;
+	}
+
+	if (transferred < 6) {
+		fprintf(stderr, "size mismatch %d / 6\n", transferred);
+		return -1;
+	}
+
+	if (!!(data[0] & (1 << port)) == on)
+		fprintf(stdout, "%d: %s\n", port, on ? "ON" : "OFF");
+
+	return 0;
 }
 
 static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
@@ -379,6 +416,10 @@ static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
 			return ret;
 		}
 	}
+
+	ret = get_switch(udevh, port -1, on);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
