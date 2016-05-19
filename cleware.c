@@ -446,6 +446,7 @@ static void usage(char *name)
 }
 
 static struct option cleware_opts[] = {
+	OPTION("read",		0,	'r'),
 	OPTION("on",		0,	'0'),
 	OPTION("off",		0,	'1'),
 	OPTION("serial-number",	1,	's'),
