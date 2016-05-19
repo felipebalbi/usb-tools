@@ -29,6 +29,9 @@
 #include <getopt.h>
 #include <libusb-1.0/libusb.h>
 
+#define HID_SET_REPORT	0x09
+#define HID_GET_REPORT	0x01
+
 /*
  * this application is known to work with the following
  * device:
@@ -338,8 +341,10 @@ static inline int set_switch8(libusb_device_handle *udevh, unsigned port, unsign
 	data[3] = 0x00;
 	data[4] = (1 << port);
 
-	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-			data, sizeof(data), TIMEOUT);
+	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
+			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
+			HID_SET_REPORT, 0x200, 0x00, data, sizeof(data),
+			TIMEOUT);
 }
 
 static inline int set_switch4(libusb_device_handle *udevh, unsigned port, unsigned on)
@@ -350,8 +355,10 @@ static inline int set_switch4(libusb_device_handle *udevh, unsigned port, unsign
 	data[1] = port + 0x10;
 	data[2] = on & 0x01;
 
-	return libusb_control_transfer(udevh, 0x21, 0x09, 0x200, 0x00,
-			data, 3, TIMEOUT);
+	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
+			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
+			HID_SET_REPORT, 0x200, 0x00, data, sizeof(data),
+			TIMEOUT);
 }
 
 static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
