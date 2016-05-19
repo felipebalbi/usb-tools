@@ -331,46 +331,24 @@ static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
 			data, sizeof(data), TIMEOUT);
 }
 
-static inline int set_switch8(libusb_device_handle *udevh, unsigned port, unsigned on)
+static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
 {
 	unsigned char		data[5];
-
-	data[0] = type;
-	data[1] = 0x00;
-	data[2] = on ? (1 << port) : 0x00;
-	data[3] = 0x00;
-	data[4] = (1 << port);
-
-	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
-			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-			HID_SET_REPORT, 0x200, 0x00, data, sizeof(data),
-			TIMEOUT);
-}
-
-static inline int set_switch4(libusb_device_handle *udevh, unsigned port, unsigned on)
-{
-	unsigned char		data[3];
+	unsigned char		length = 3;
 
 	data[0] = type;
 	data[1] = port + 0x10;
 	data[2] = on & 0x01;
 
+	if (type == CLEWARE_TYPE_CONTACT) {
+		data[3] = 0x00;
+		data[4] = (1 << port);
+		length = 5;
+	}
+
 	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
 			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-			HID_SET_REPORT, 0x200, 0x00, data, sizeof(data),
-			TIMEOUT);
-}
-
-static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
-{
-	if (type == CLEWARE_TYPE_SWITCH) {
-		return set_switch4(udevh, port, on);
-	} else if (type == CLEWARE_TYPE_CONTACT) {
-		return set_switch8(udevh, port, on);
-	} else {
-		DBG("%s: unsupported type\n", __func__);
-		return -EINVAL;
-	}
+			HID_SET_REPORT, 0x200, 0x00, data, length, TIMEOUT);
 }
 
 static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
