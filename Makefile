@@ -1,7 +1,7 @@
 ##
 # Makefile - make support for usb-tools
 #
-# Copyright (C) 2010 Felipe Balbi <felipe.balbi@nokia.com>
+# Copyright (C) 2010-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
 #
 # This file is part of the USB Verification Tools Project
 #

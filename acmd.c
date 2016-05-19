@@ -2,7 +2,7 @@
 /**
  * acmd.c - Server for f_acm.c verification
  *
- * Copyright (C) 2010-2013 Felipe Balbi <balbi@ti.com>
+ * Copyright (C) 2010-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
  *
  * This file is part of the USB Verification Tools Project
  *

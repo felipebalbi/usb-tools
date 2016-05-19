@@ -3,7 +3,7 @@
 ##
 # create_std_source.sh - creates standard C source with GPL Header
 #
-# Copyright (C) 2009 Felipe Balbi <felipe.balbi@nokia.com>
+# Copyright (C) 2009-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
 #
 # This file is part of the USB Verification Tools Project
 #

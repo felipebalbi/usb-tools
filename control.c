@@ -2,7 +2,7 @@
 /**
  * control.c - Build specified control messages and send to remote device
  *
- * Copyright (C) 2013 Felipe Balbi <balbi@ti.com>
+ * Copyright (C) 2013-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
  *
  * This file is part of the USB Verification Tools Project
  *

@@ -3,7 +3,7 @@
 ##
 # msc.sh - Better setup for running msc tests
 #
-# Copyright (C) 2009 Felipe Balbi <felipe.balbi@nokia.com>
+# Copyright (C) 2009-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
 #
 # This file is part of the USB Verification Tools Project
 #
