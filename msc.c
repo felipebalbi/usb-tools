@@ -236,7 +236,7 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
 	transferred = (float) msc->transferred;
 
 	for (i = 0; i < ARRAY_SIZE(units); i++) {
-		if (transferred > 1024.0) {
+		if (transferred >= 1024.0) {
 			transferred /= 1024.0;
 			continue;
 		}
