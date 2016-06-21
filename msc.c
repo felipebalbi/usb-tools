@@ -1652,11 +1652,6 @@ static struct option msc_opts[] = {
 		.val		= 'p',
 	},
 	{
-		.name		= "buffer-type",	/* buffer type */
-		.has_arg	= 1,
-		.val		= 'b',
-	},
-	{
 		.name		= "debug",
 		.val		= 'd',
 	},
