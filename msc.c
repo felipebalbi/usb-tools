@@ -40,7 +40,7 @@
 
 #define __maybe_unused		__attribute__((unused))
 
-#define BUFLEN			1048576
+#define BUFLEN			(1024*1024*256) /* up to 256MiB */
 #define PAGE_SIZE		4096
 
 #define false	0
@@ -51,14 +51,6 @@ static unsigned debug;
 /* for measuring throughput */
 static struct timespec		start;
 static struct timespec		end;
-
-/* different buffers */
-static unsigned char		*txbuf_heap;
-static unsigned char		*rxbuf_heap;
-
-/* stack allocated buffers aligned in page size */
-static unsigned char	txbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
-static unsigned char	rxbuf_stack[BUFLEN] __attribute__((aligned (PAGE_SIZE)));
 
 #define DBG(fmt, args...)				\
 	if (debug)					\
@@ -83,7 +75,6 @@ struct usb_msc_test {
 	unsigned	sect_size;	/* sector size */
 	unsigned	pattern;	/* pattern to use */
 	unsigned	size;		/* buffer size */
-	unsigned	type;		/* buffer type */
 
 	off_t		offset;		/* current offset */
 
@@ -109,14 +100,9 @@ enum usb_msc_test_case {
 	MSC_TEST_SG_RANDOM_READ,	/* write, read random SG 2 - 8 sectors */
 	MSC_TEST_SG_RANDOM_WRITE,	/* write random SG 2 - 8 sectors, read */
 	MSC_TEST_SG_RANDOM_BOTH,	/* write and read random SG 2 - 8 sectors */
-	MSC_TEST_READ_DIFF_BUF,		/* read using differently allocated buffers */
-	MSC_TEST_WRITE_DIFF_BUF,	/* write using differently allocated buffers */
+	MSC_RESERVED0,
+	MSC_RESERCED1,
 	MSC_TEST_PATTERNS,		/* write known patterns and read it back */
-};
-
-enum usb_msc_buffer_type {
-	MSC_BUFFER_HEAP,
-	MSC_BUFFER_STACK,
 };
 
 /* Patterns taken from linux/arch/x86/mm/memtest.c */
@@ -150,8 +136,7 @@ static char	*units[] = {
  */
 static void init_buffer(struct usb_msc_test *msc)
 {
-	memset(txbuf_heap, 0x55, msc->size);
-	memset(txbuf_stack, 0x55, msc->size);
+	memset(msc->txbuf, 0x55, msc->size);
 }
 
 /**
@@ -183,22 +168,19 @@ static int alloc_and_init_buffer(struct usb_msc_test *msc)
 {
 	int			ret = -ENOMEM;
 
-	txbuf_heap = alloc_buffer(msc->size);
-	if (!txbuf_heap) {
+	msc->txbuf = alloc_buffer(msc->size);
+	if (!msc->txbuf) {
 		DBG("%s: unable to allocate txbuf\n", __func__);
 		goto err0;
 	}
 
-	msc->txbuf = txbuf_heap;
 	init_buffer(msc);
 
-	rxbuf_heap = alloc_buffer(msc->size);
-	if (!rxbuf_heap) {
+	msc->rxbuf = alloc_buffer(msc->size);
+	if (!msc->rxbuf) {
 		DBG("%s: unable to allocate rxbuf\n", __func__);
 		goto err1;
 	}
-
-	msc->rxbuf = rxbuf_heap;
 
 	return 0;
 
@@ -509,86 +491,6 @@ static int do_test_patterns(struct usb_msc_test *msc)
 	}
 
 	report_progress(msc, MSC_TEST_PATTERNS, true);
-
-	return ret;
-}
-
-/**
- * do_test_write_diff_buf - read with different buffer types
- * @msc:	Mass Storage Test Context
- */
-static int do_test_write_diff_buf(struct usb_msc_test *msc)
-{
-	int			ret = 0;
-	int			i;
-
-	unsigned		type = msc->type;
-
-	switch (type) {
-	case MSC_BUFFER_HEAP:
-		msc->txbuf = txbuf_heap;
-		break;
-	case MSC_BUFFER_STACK:
-		msc->txbuf = txbuf_stack;
-		break;
-	default:
-		printf("%s: Unsupported type\n", __func__);
-		break;
-	}
-
-	for (i = 0; i < msc->count; i++) {
-		ret = do_write(msc, msc->size);
-		if (ret < 0)
-			break;
-
-		report_progress(msc, MSC_TEST_WRITE_DIFF_BUF, false);
-	}
-
-	report_progress(msc, MSC_TEST_WRITE_DIFF_BUF, true);
-
-	/* reset to default */
-	msc->txbuf = txbuf_heap;
-
-	return ret;
-}
-
-/**
- * do_test_read_diff_buf - read with different buffer types
- * @msc:	Mass Storage Test Context
- */
-static int do_test_read_diff_buf(struct usb_msc_test *msc)
-{
-	int			ret = 0;
-	int			i;
-
-	unsigned		type = msc->type;
-
-	switch (type) {
-	case MSC_BUFFER_HEAP:
-		msc->rxbuf = rxbuf_heap;
-		break;
-	case MSC_BUFFER_STACK:
-		msc->rxbuf = rxbuf_stack;
-		break;
-	default:
-		printf("%s: Unsupported type\n", __func__);
-		break;
-	}
-
-	for (i = 0; i < msc->count; i++) {
-		memset(msc->rxbuf, 0x00, msc->size);
-
-		ret = do_read(msc, msc->size);
-		if (ret < 0)
-			break;
-
-		report_progress(msc, MSC_TEST_READ_DIFF_BUF, false);
-	}
-
-	report_progress(msc, MSC_TEST_READ_DIFF_BUF, true);
-
-	/* reset to default */
-	msc->rxbuf = rxbuf_heap;
 
 	return ret;
 }
@@ -1693,12 +1595,6 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 	case MSC_TEST_SG_RANDOM_BOTH:
 		ret = do_test_sg_random_both(msc);
 		break;
-	case MSC_TEST_READ_DIFF_BUF:
-		ret = do_test_read_diff_buf(msc);
-		break;
-	case MSC_TEST_WRITE_DIFF_BUF:
-		ret = do_test_write_diff_buf(msc);
-		break;
 	case MSC_TEST_PATTERNS:
 		ret = do_test_patterns(msc);
 		break;
@@ -1725,7 +1621,6 @@ static void usage(char *prog)
 			--test, -t		Test number [0 - 21]\n\
 			--size, -s		Size of the internal buffers\n\
 			--count, -c		Iteration count\n\
-			--buffer-type, -b	Buffer type (stack | heap)\n\
 			--debug, -d		Enables debugging messages\n\
 			--dsync, -n		Enables O_DSYNC\n\
 			--pattern, -p		Pattern chosen\n\
@@ -1787,7 +1682,6 @@ int main(int argc, char *argv[])
 	unsigned		sect_size;
 	unsigned		size = 0;
 	unsigned		count = 100; /* 100 loops by default */
-	unsigned		type = MSC_BUFFER_HEAP;
 	int			flags = O_RDWR | O_DIRECT;
 	int			ret = 0;
 
@@ -1857,17 +1751,6 @@ int main(int argc, char *argv[])
 				goto err0;
 			}
 			break;
-		case 'b':
-			if (!strncmp(optarg, "heap", 4)) {
-				type = MSC_BUFFER_HEAP;
-			} else if (!strncmp(optarg, "stack", 5)) {
-				type = MSC_BUFFER_STACK;
-			} else {
-				DBG("%s: unsuported buffer type\n", __func__);
-				goto err0;
-			}
-			break;
-
 		case 'd':
 			debug = 1;
 			break;
@@ -1930,7 +1813,6 @@ int main(int argc, char *argv[])
 	msc->psize = blksize;
 	msc->pempty = blksize;
 	msc->sect_size = sect_size;
-	msc->type = type;
 
 	/*
 	 * sync before starting any test in order to get more

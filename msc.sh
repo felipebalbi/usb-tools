@@ -209,20 +209,6 @@ msc -n -t 14 -o $OUTPUT -s 65536 -c $COUNT
 printf "test 15: write and read 8 random size sgs		\n"
 msc -n -t 15 -o $OUTPUT -s 65536 -c $COUNT
 
-# read with differently allocated buffers
-printf "test 16a: read with heap allocated buffer		\n"
-msc -n -t 16 -o $OUTPUT -s 65536 -c $COUNT -b heap
-
-printf "test 16b: read with stack allocated buffer		\n"
-msc -n -t 16 -o $OUTPUT -s 65536 -c $COUNT -b stack
-
-# write with differently allocated buffers
-printf "test 17a: write with heap allocated buffer		\n"
-msc -n -t 17 -o $OUTPUT -s 65536 -c $COUNT -b heap
-
-printf "test 17b: write with stack allocated buffer		\n"
-msc -n -t 17 -o $OUTPUT -s 65536 -c $COUNT -b stack
-
 # write known patterns and read it back
 printf "test 18a: write 0x00 and read it back			\n"
 msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 0
