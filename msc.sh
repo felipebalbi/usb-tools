@@ -22,7 +22,7 @@
 ##
 
 OUTPUT=""
-COUNT=1000
+COUNT=1024
 
 TEMP=`getopt -o "o:c:h" -n 'msc.sh' -- "$@"`
 
@@ -54,51 +54,57 @@ printf "Starting test suite: $(date)\n"
 
 # Simple read and write
 printf "test 0a: simple 4k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 4096 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 4k -c $COUNT
 
 printf "test 0b: simple 8k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 8192 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 8k -c $COUNT
 
 printf "test 0c: simple 16k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 16384 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 16k -c $COUNT
 
 printf "test 0d: simple 32k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 32768 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 32k -c $COUNT
 
 printf "test 0e: simple 64k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 64k -c $COUNT
 
 printf "test 0f: simple 128k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 131072 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 128k -c $COUNT
 
 printf "test 0g: simple 256k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 262144 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 256k -c $COUNT
 
 printf "test 0h: simple 512k read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 524288 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 512k -c $COUNT
 
 printf "test 0i: simple 1M read/write				\n"
-msc -n -t 0 -o $OUTPUT -s 1048576 -c $COUNT
+msc -n -t 0 -o $OUTPUT -s 1M -c $COUNT
+
+printf "test 0j: simple 2M read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 2M -c $COUNT
+
+printf "test 0k: simple 4M read/write				\n"
+msc -n -t 0 -o $OUTPUT -s 4M -c $COUNT
 
 # 1-sector read/write
 printf "test 1: simple 1-sector read/write			\n"
-msc -n -t 1 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 1 -o $OUTPUT -s 64k -c $COUNT
 
 # 8-sectors read/write
 printf "test 2: simple 8-sectors read/write			\n"
-msc -n -t 2 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 2 -o $OUTPUT -s 64k -c $COUNT
 
 # 32-sectors read/write
 printf "test 3: simple 32-sectors read/write			\n"
-msc -n -t 3 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 3 -o $OUTPUT -s 64k -c $COUNT
 
 # 64-sectors read/write
 printf "test 4: simple 64-sectors read/write			\n"
-msc -n -t 4 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 4 -o $OUTPUT -s 64k -c $COUNT
 
 # SG 2-sectors read/write
 printf "test 5a: scatter/gather for 2-sectors buflen 4k		\n"
-msc -n -t 5 -o $OUTPUT -s 4096 -c $COUNT
+msc -n -t 5 -o $OUTPUT -s 4k -c $COUNT
 
 printf "test 5b: scatter/gather for 2-sectors buflen 8k		\n"
 msc -n -t 5 -o $OUTPUT -s 8192 -c $COUNT
@@ -110,7 +116,7 @@ printf "test 5d: scatter/gather for 2-sectors buflen 32k	\n"
 msc -n -t 5 -o $OUTPUT -s 32768 -c $COUNT
 
 printf "test 5e: scatter/gather for 2-sectors buflen 64k	\n"
-msc -n -t 5 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 5 -o $OUTPUT -s 64k -c $COUNT
 
 printf "test 5f: scatter/gather for 2-sectors buflen 128k	\n"
 msc -n -t 5 -o $OUTPUT -s 131072 -c $COUNT
@@ -126,137 +132,137 @@ msc -n -t 5 -o $OUTPUT -s 1048576 -c $COUNT
 
 # SG 8-sectors read/write
 printf "test 6a: scatter/gather for 8-sectors buflen 4k		\n"
-msc -n -t 6 -o $OUTPUT -s 4096 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 4k -c $COUNT
 
 printf "test 6b: scatter/gather for 8-sectors buflen 8k		\n"
-msc -n -t 6 -o $OUTPUT -s 8192 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 8k -c $COUNT
 
 printf "test 6c: scatter/gather for 8-sectors buflen 16k	\n"
-msc -n -t 6 -o $OUTPUT -s 16384 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 16k -c $COUNT
 
 printf "test 6d: scatter/gather for 8-sectors buflen 32k	\n"
-msc -n -t 6 -o $OUTPUT -s 32768 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 32k -c $COUNT
 
 printf "test 6e: scatter/gather for 8-sectors buflen 64k	\n"
-msc -n -t 6 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 64k -c $COUNT
 
 printf "test 6f: scatter/gather for 8-sectors buflen 128k	\n"
-msc -n -t 6 -o $OUTPUT -s 131072 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 128k -c $COUNT
 
 printf "test 6g: scatter/gather for 8-sectors buflen 256k	\n"
-msc -n -t 6 -o $OUTPUT -s 262144 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 256k -c $COUNT
 
 printf "test 6h: scatter/gather for 8-sectors buflen 512k	\n"
-msc -n -t 6 -o $OUTPUT -s 524288 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 512k -c $COUNT
 
 printf "test 6i: scatter/gather for 8-sectors buflen 1M		\n"
-msc -n -t 6 -o $OUTPUT -s 1048576 -c $COUNT
+msc -n -t 6 -o $OUTPUT -s 1M -c $COUNT
 
 # SG 32-sectors read/write
 printf "test 7a: scatter/gather for 32-sectors buflen 16k	\n"
-msc -n -t 7 -o $OUTPUT -s 16384 -c $COUNT
+msc -n -t 7 -o $OUTPUT -s 16k -c $COUNT
 
 printf "test 7b: scatter/gather for 32-sectors buflen 32k	\n"
-msc -n -t 7 -o $OUTPUT -s 32768 -c $COUNT
+msc -n -t 7 -o $OUTPUT -s 32k -c $COUNT
 
 printf "test 7c: scatter/gather for 32-sectors buflen 64k	\n"
-msc -n -t 7 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 7 -o $OUTPUT -s 64k -c $COUNT
 
 # SG 64-sectors read/write
 printf "test 8a: scatter/gather for 64-sectors buflen 32k	\n"
-msc -n -t 8 -o $OUTPUT -s 32768 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 32k -c $COUNT
 
 printf "test 8b: scatter/gather for 64-sectors buflen 64k	\n"
-msc -n -t 8 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 64k -c $COUNT
 
 printf "test 8c: scatter/gather for 64-sectors buflen 128k	\n"
-msc -n -t 8 -o $OUTPUT -s 131072 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 128k -c $COUNT
 
 printf "test 8d: scatter/gather for 64-sectors buflen 256k	\n"
-msc -n -t 8 -o $OUTPUT -s 262144 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 256k -c $COUNT
 
 printf "test 8e: scatter/gather for 64-sectors buflen 512k	\n"
-msc -n -t 8 -o $OUTPUT -s 524288 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 512k -c $COUNT
 
 printf "test 8f: scatter/gather for 64-sectors buflen 1M	\n"
-msc -n -t 8 -o $OUTPUT -s 1048576 -c $COUNT
+msc -n -t 8 -o $OUTPUT -s 1M -c $COUNT
 
 # SG 128-sectors read/write
 printf "test 9: scatter/gather for 128-sectors buflen 64k	\n"
-msc -n -t 9 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 9 -o $OUTPUT -s 64k -c $COUNT
 
 # Read past the last sector
 printf "test 10: read over the end of the block device		\n"
-msc -n -t 10 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 10 -o $OUTPUT -s 64k -c $COUNT
 
 # Lseek past the last sector
 printf "test 11: lseek past the end of the block device		\n"
-msc -n -t 11 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 11 -o $OUTPUT -s 64k -c $COUNT
 
 # Write past the last sector
 printf "test 12: write over the end of the block device		\n"
-msc -n -t 12 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 12 -o $OUTPUT -s 64k -c $COUNT
 
 # write 1 sg, read in 8 random size sgs
 printf "test 13: write 1 sg, read 8 random size sgs		\n"
-msc -n -t 13 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 13 -o $OUTPUT -s 64k -c $COUNT
 
 # write 8 random size sgs, read 1 sg
 printf "test 14: write 8 random size sgs, read 1 sg		\n"
-msc -n -t 14 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 14 -o $OUTPUT -s 64k -c $COUNT
 
 # write and read 8 random size sgs
 printf "test 15: write and read 8 random size sgs		\n"
-msc -n -t 15 -o $OUTPUT -s 65536 -c $COUNT
+msc -n -t 15 -o $OUTPUT -s 64k -c $COUNT
 
 # write known patterns and read it back
 printf "test 18a: write 0x00 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 0
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 0
 
 printf "test 18b: write 0x11 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 1
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 1
 
 printf "test 18c: write 0x22 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 2
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 2
 
 printf "test 18d: write 0x33 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 3
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 3
 
 printf "test 18e: write 0x44 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 4
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 4
 
 printf "test 18f: write 0x55 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 5
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 5
 
 printf "test 18g: write 0x66 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 6
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 6
 
 printf "test 18h: write 0x77 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 7
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 7
 
 printf "test 18i: write 0x88 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 8
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 8
 
 printf "test 18j: write 0x99 and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 9
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 9
 
 printf "test 18k: write 0xaa and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 10
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 10
 
 printf "test 18l: write 0xbb and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 11
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 11
 
 printf "test 18m: write 0xcc and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 12
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 12
 
 printf "test 18n: write 0xdd and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 13
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 13
 
 printf "test 18o: write 0xee and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 14
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 14
 
 printf "test 18p: write 0xff and read it back			\n"
-msc -n -t 18 -o $OUTPUT -s 65536 -c $COUNT -p 15
+msc -n -t 18 -o $OUTPUT -s 64k -c $COUNT -p 15
 
 printf "Test suite ended: $(date)\n"
 
