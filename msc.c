@@ -41,7 +41,6 @@
 #define __maybe_unused		__attribute__((unused))
 
 #define BUFLEN			(1024*1024*256) /* up to 256MiB */
-#define PAGE_SIZE		4096
 
 #define false	0
 #define true	!false
@@ -1722,13 +1721,6 @@ int main(int argc, char *argv[])
 			if (size > BUFLEN) {
 				DBG("%s: can't allocate more than 1MiB\n",
 						__func__);
-				ret = -EINVAL;
-				goto err0;
-			}
-
-			if (size % getpagesize()) {
-				DBG("%s: unaligned size (pagesize=%d)\n",
-						__func__, getpagesize());
 				ret = -EINVAL;
 				goto err0;
 			}
