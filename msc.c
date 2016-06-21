@@ -20,6 +20,7 @@
  * along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,8 +40,6 @@
 #include <openssl/sha.h>
 
 #define __maybe_unused		__attribute__((unused))
-
-#define MAX_BUFLEN			(1024*1024*256) /* up to 256MiB */
 
 #define false	0
 #define true	!false
@@ -1680,6 +1679,7 @@ int main(int argc, char *argv[])
 	unsigned		pattern = 0;
 	unsigned		sect_size;
 	unsigned		size = 0;
+	unsigned		mult = 1;
 	unsigned		count = 100; /* 100 loops by default */
 	int			flags = O_RDWR | O_DIRECT;
 	int			ret = 0;
@@ -1687,6 +1687,7 @@ int main(int argc, char *argv[])
 	enum usb_msc_test_case	test = MSC_TEST_SIMPLE; /* test simple */
 
 	char			*output = NULL;
+	char			*tmp;
 
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
@@ -1710,6 +1711,27 @@ int main(int argc, char *argv[])
 			break;
 
 		case 's':
+			tmp = optarg;
+
+			while (isdigit(*tmp))
+				tmp++;
+
+			switch (*tmp) {
+			case 'G':
+			case 'g':
+				mult *= 1024;
+				/* FALLTHROUGH */
+			case 'M':
+			case 'm':
+				mult *= 1024;
+				/* FALLTHROUGH */
+			case 'k':
+			case 'K':
+				mult *= 1024;
+				break;
+			}
+			*tmp = '\0';
+
 			size = atoi(optarg);
 			if (size == 0) {
 				DBG("%s: can't do it with zero length buffer\n",
@@ -1718,14 +1740,8 @@ int main(int argc, char *argv[])
 				goto err0;
 			}
 
-			if (size > MAX_BUFLEN) {
-				DBG("%s: can't allocate more than 1MiB\n",
-						__func__);
-				ret = -EINVAL;
-				goto err0;
-			}
+			size *= mult;
 			break;
-
 		case 'c':
 			count = atoi(optarg);
 			if (count <= 0) {
