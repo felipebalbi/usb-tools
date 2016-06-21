@@ -40,7 +40,7 @@
 
 #define __maybe_unused		__attribute__((unused))
 
-#define BUFLEN			(1024*1024*256) /* up to 256MiB */
+#define MAX_BUFLEN			(1024*1024*256) /* up to 256MiB */
 
 #define false	0
 #define true	!false
@@ -1718,7 +1718,7 @@ int main(int argc, char *argv[])
 				goto err0;
 			}
 
-			if (size > BUFLEN) {
+			if (size > MAX_BUFLEN) {
 				DBG("%s: can't allocate more than 1MiB\n",
 						__func__);
 				ret = -EINVAL;
