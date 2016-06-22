@@ -141,26 +141,26 @@ testusb.o: testusb.c
 # Tools which need librt go here
 
 msc: msc.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBRT_LIBS) $(LIBSSL_LIBS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS) $(LIBRT_LIBS) $(LIBSSL_LIBS)
 
 msc.o: msc.c
-	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
 
 
 
 # Tools which don't have special requirements go here
 
 acmc: acmc.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
 
 acmc.o: acmc.c
-	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
 
 switchbox: switchbox.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS)
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
 
 switchbox.o: switchbox.c
-	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS)
 
 acmd: acmd.o
 	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(GENERIC_CFLAGS)
