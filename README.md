@@ -12,12 +12,12 @@ new USB Peripheral Controller Driver.
 The following sections will explain in a little more detail how to use
 these tools.
 
-## Mass Storage Class (msc.c/msc.sh)
+## Mass Storage Class (`msc.c` & `msc.sh`)
 
-In reality msc.c/msc.sh pair can test any Linux block device, but the
-tool was written, originally, to test the g_mass_storage gadget.
+In reality, `msc.c` and `msc.sh` pair can test any Linux block device,
+but the tool was written, originally, to test the g_mass_storage gadget.
 
-To run this tool all you have to do is load g_mass_storage on the
+To run this tool all you have to do is load `g_mass_storage` on the
 peripheral side (or connect a USB mass storage to your host PC) and run
 the test suite:
 
@@ -31,20 +31,45 @@ prevent you from destroying your root filesystem and assumes that you
 are, indeed, using the correct block device. Make sure you know what
 you're doing.
 
-## testusb/test.sh
+You can also call `msc.c` directly (after compiling it to `msc` of
+course) in order to isolate problems with particular test cases or, if
+you wish, measure throughput with different block sizes.
+
+Personally, I like to measure throughput when I make changes that could
+impact `g_mass_storage` somehow. So, what I generally do is the
+following:
+
+```
+# modprobe dwc3-pci
+# modprobe dwc3
+# dd if`/dev/zero of`/dev/shm/file bs`1M count`512
+# modprobe g_mass_storage file`/dev/shm/file
+```
+
+After that, I connect USB cable and get the thing enumerated on a host
+machine. At that point I can run `msc` with different block sizes to get
+a feeling of throughput trend:
+
+```
+$ for size in 1k 2k 4k 8k 16k 32k 64k 128k 256k 512k 1M 2M 4M; do \
+	msc -t 0 -s $size -c 1024 -o /dev/foobar -n;              \
+	done
+```
+
+## `testusb` & `test.sh`
 
 This tool helps exercising both host and peripheral stacks. The idea is
 the following:
 
 If you want to test the host stack, then use a USB peripheral controller
-you can assume to be working, like dwc3 (drivers/usb/dwc3/) available on
-several platforms including Intel Edison, and load g_zero.ko:
+you can assume to be working, like `dwc3` (drivers/usb/dwc3/) available
+on several platforms including Intel Edison, and load `g_zero.ko`:
 
 ```
 # modprobe g_zero
 ```
 
-Then connect the cable to the host and run test.sh:
+Then connect the cable to the host and run `test.sh`:
 
 ```
 # test.sh
@@ -52,30 +77,30 @@ Then connect the cable to the host and run test.sh:
 
 If, on the other hand, you're trying to exercise a new USB Peripheral
 controller, we need a Host controller which we can assume to be working,
-like EHCI or xHCI (see Notes section below), and load g_zero.ko:
+like EHCI or xHCI (see Notes section below), and load `g_zero.ko`:
 
 ```
 # modprobe g_zero
 ```
 
-Then connect the cable to the host and run test.sh:
+Then connect the cable to the host and run `test.sh`:
 
 ```
 # test.sh
 ```
 
-You'll notice that test.sh will run in an infinite loop and that's by
+You'll notice that `test.sh` will run an infinite loop and that's by
 design. To make sure your implementation of a host or peripheral
-controller driver is working fine, test.sh needs to be able to run for
+controller driver is working fine, `test.sh` needs to be able to run for
 several weeks without any failures.
 
-## device-reset
+## `device-reset`
 
 This tool tests that a USB peripheral can handle multiple resets in a
 row. It's used like so:
 
 First, you needt know the USB device's VendorID/ProductID pair. The
-easiest way to get that is with lsusb:
+easiest way to get that is with `lsusb`:
 
 ```
 $ lsusb
@@ -93,7 +118,7 @@ Let's assume we want to test our ABCD test device, so we run:
 This will run 5000 USB resets in a tight loop. Test passes if the USB
 device re-enumerates fine after each and every iteration.
 
-## testmode
+## `testmode`
 
 This is used to put a USB device in USB 2.0 Test Modes as described by
 the USB 2.0 specification. Valid test modes are:
@@ -112,19 +137,19 @@ Example usage follows:
 # testmode -D abcd:abcd -t test_j
 ```
 
-## acmc/acmd and serialc/seriald
+## `acmc` & `acmd` and `serialc` & `seriald`
 
 TODO
 
-## companion-desc
+## `companion-desc`
 
 TODO
 
-## control
+## `control`
 
 TODO
 
-## pingtest/scptest.sh
+## `pingtest` & `scptest.sh`
 
 TODO
 
@@ -132,7 +157,7 @@ TODO
 
 ### xHCI
 
-At the time of this writing, Linux Kernel v4.6 or before is known to
+At the time of this writing, Linux Kernel v4.7 or before is known to
 have a buggy xHCI ring implementation which doesn't guarantee some
 alignment conditions and, because of that, some tests in testusb hang
 with xHCI. Situation is supposed to change in coming Linux Kernel
