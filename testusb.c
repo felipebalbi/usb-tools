@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)cc -Wall -Wextra -g -lpthread -o testusb testusb.c */
 
 /*
  * Copyright (c) 2002 by David Brownell

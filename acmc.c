@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o acmc acmc.c */
 /**
  * acmc.c - Client for f_acm.c verification
  *

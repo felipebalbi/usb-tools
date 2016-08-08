@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -o seriald seriald.c */
 /**
  * seriald.c - Server for u_serial verification
  *

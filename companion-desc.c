@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o companion-desc companion-desc.c */
 /**
  * companion-desc.c - Enter USB testmodes
  *

@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o serialc serialc.c */
 /**
  * serialc.c - Client for u_serial verification
  *

@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o acmd acmd.c */
 /**
  * acmd.c - Server for f_acm.c verification
  *

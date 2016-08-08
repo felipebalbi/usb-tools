@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o device-reset device-reset.c */
 /**
  * device-reset.c - Infinite loop to reset a USB device.
  *

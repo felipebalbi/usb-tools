@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O3 -g -lusb-1.0 -o cleware cleware.c */
 /**
  * cleware.c - Cleware USB-Controlled Power Switch
  *

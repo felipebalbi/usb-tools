@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -lusb-1.0 -o control control.c */
 /**
  * control.c - Build specified control messages and send to remote device
  *

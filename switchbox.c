@@ -1,4 +1,3 @@
-/* $(CROSS_COMPILE)gcc -Wall -O2 -g -o switchbox switchbox.c */
 /**
  * switchbox.c - Server for u_serial verification
  *
