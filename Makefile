@@ -64,6 +64,7 @@ BINARIES = acmc			\
 	   test.sh		\
 	   testmode		\
 	   testusb		\
+           uda			\
 	   usbpwrtest
 
 all: usb rt pthread generic
@@ -74,7 +75,7 @@ install: all
 uninstall:
 	$(foreach file,$(BINARIES), rm -f $(PREFIX)/bin/$(file))
 
-usb: companion-desc testmode cleware control device-reset
+usb: companion-desc testmode cleware control device-reset uda
 
 rt: msc
 
@@ -112,6 +113,12 @@ control: control.o
 	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 control.o: control.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
+
+uda: uda.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS) $(LIBPTHREAD_LIBS) -ludev
+
+uda.o: uda.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 serialc: serialc.o
