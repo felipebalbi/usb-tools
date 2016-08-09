@@ -68,6 +68,7 @@ static int do_test(libusb_device_handle *udevh)
 {
 	int				transferred;
 	int				ret;
+	int				i;
 
 	ret = libusb_claim_interface(udevh, 0);
 	if (ret < 0) {
@@ -75,19 +76,23 @@ static int do_test(libusb_device_handle *udevh)
 		return ret;
 	}
 
-	ret = libusb_bulk_transfer(udevh, 1, frame, FULL_SIZE,
-			&transferred, DEFAULT_TIMEOUT);
-	if (ret < 0) {
-		fprintf(stderr, "Bulk transfer failed\n");
-		libusb_release_interface(udevh, 0);
-		return ret;
-	}
 
-	if (transferred < FULL_SIZE) {
-		fprintf(stderr, "Couldn't transfer all bytes %d/%d",
-				transferred, FULL_SIZE);
-		libusb_release_interface(udevh, 0);
-		return -1;
+	for (i = 0; i < 10; i++) {
+		ret = libusb_bulk_transfer(udevh, 1, frame, FULL_SIZE,
+				&transferred, DEFAULT_TIMEOUT);
+		if (ret < 0) {
+			fprintf(stderr, "failed %d/%d -> %s\n", transferred,
+					FULL_SIZE, libusb_error_name(ret));
+			libusb_release_interface(udevh, 0);
+			return ret;
+		}
+
+		if (transferred < FULL_SIZE) {
+			fprintf(stderr, "Couldn't transfer all bytes %d/%d",
+					transferred, FULL_SIZE);
+			libusb_release_interface(udevh, 0);
+			return -1;
+		}
 	}
 
 	return 0;
