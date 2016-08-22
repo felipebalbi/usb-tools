@@ -33,6 +33,9 @@ LIBPTHREAD_LIBS = -lpthread
 LIBRT_LIBS = -lrt
 LIBSSL_LIBS = -lssl -lcrypto
 
+HIDAPI_LIBS = $(shell pkg-config --libs hidapi-hidraw)
+HIDAPI_CFLAGS = $(shell pkg-config --cflags hidapi-hidraw)
+
 CFLAGS = $(GENERIC_CFLAGS) $(LIBUSB_CFLAGS)
 
 #
@@ -67,7 +70,7 @@ BINARIES = acmc			\
            uda			\
 	   usbpwrtest
 
-all: usb rt pthread generic
+all: hidapi usb rt pthread generic
 
 install: all
 	$(QUIET_INSTALL) install -m 755 -t $(PREFIX)/bin/ $(BINARIES)
@@ -75,13 +78,23 @@ install: all
 uninstall:
 	$(foreach file,$(BINARIES), rm -f $(PREFIX)/bin/$(file))
 
-usb: companion-desc testmode cleware control device-reset uda
+usb: companion-desc testmode control device-reset uda
+
+hidapi: cleware
 
 rt: msc
 
 pthread: testusb
 
 generic: serialc acmc switchbox seriald acmd
+
+# Tools which need hidapi go here
+
+cleware: cleware.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(HIDAPI_LIBS)
+
+cleware.o: cleware.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(GENERIC_CFLAGS) $(HIDAPI_CFLAGS)
 
 # Tools which need libusb-1.0 go here
 
@@ -101,12 +114,6 @@ device-reset: device-reset.o
 	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
 
 device-reset.o: device-reset.c
-	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
-
-cleware: cleware.o
-	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(LIBUSB_LIBS)
-
-cleware.o: cleware.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 control: control.o

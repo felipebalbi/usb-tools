@@ -26,416 +26,39 @@
 #include <unistd.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libusb-1.0/libusb.h>
+#include <hidapi.h>
+#include <wchar.h>
 
-#define HID_SET_REPORT	0x09
-#define HID_GET_REPORT	0x01
+#define false 0
+#define true !false
 
-#define HID_REPORT_OUT	0x02
-#define HID_REPORT_IN	0x01
-
-/*
- * this application is known to work with the following
- * device:
- *
- * http://www.cleware.de/produkte/p-usbswitch-E.html
- */
-
+#define CLEWARE_HID_REPORT_SIZE	65
 #define CLEWARE_VENDOR_ID	0x0d50
+
 #define CLEWARE_USB_SWITCH	0x0008
 #define CLEWARE_USB_SWITCH8	0x0030
-
-#define CLEWARE_TYPE_SWITCH	0x00
-#define CLEWARE_TYPE_CONTACT	0x03
-
-#define CLEWARE_INT_IN_EP (LIBUSB_ENDPOINT_IN | 1)
-
-struct usb_device_id {
-	unsigned		idVendor;
-	unsigned		idProduct;
-	unsigned		num_ports;
-	unsigned		type;
-};
-
-#define USB_DEVICE(v, p, n, t)		\
-{					\
-	.idVendor		= v,	\
-	.idProduct		= p,	\
-	.num_ports		= n,	\
-	.type			= t	\
-}
-
-static struct usb_device_id cleware_id[] = {
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH, 4,
-			CLEWARE_TYPE_SWITCH),
-	USB_DEVICE(CLEWARE_VENDOR_ID, CLEWARE_USB_SWITCH8, 8,
-			CLEWARE_TYPE_CONTACT),
-};
-
-static int num_ports;
-static unsigned type;
-static int debug;
-
-#define DBG(fmt, args...)			\
-	if (debug)				\
-		fprintf(stdout, fmt, ## args)
 
 #define TIMEOUT			1000	/* ms */
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-static int match_device_id(libusb_device *udev)
-{
-	struct libusb_device_descriptor	desc;
-	int				match = 0;
-	int				ret;
-	int				i;
+struct cleware {
+	struct hid_device_info *dev;
+	hid_device *handle;
+	wchar_t *serial;
 
-	ret = libusb_get_device_descriptor(udev, &desc);
-	if (ret < 0) {
-		DBG("%s: failed to get device descriptor\n", __func__);
-		return ret;
-	}
+	unsigned short vendor_id;
+	unsigned short product_id;
 
-	DBG("%s: got device desc for %04x:%04x\n", __func__,
-			desc.idVendor, desc.idProduct);
+	unsigned char report[65];
+	unsigned int report_size;
 
-	for (i = 0; i < ARRAY_SIZE(cleware_id); i++) {
-		if ((desc.idVendor == cleware_id[i].idVendor) &&
-				(desc.idProduct == cleware_id[i].idProduct)) {
-			match = 1;
-			num_ports = cleware_id[i].num_ports;
-			type = cleware_id[i].type;
-			DBG("%s: matched device %04x:%04x num_ports %d\n",__func__,
-					desc.idVendor, desc.idProduct, num_ports);
-		}
-	}
+	unsigned short type;
 
-	return match;
-}
+	unsigned int inverted:1;
+};
 
-static int match_device_serial_number(libusb_device *udev, unsigned iSerial)
-{
-	struct libusb_device_descriptor	desc;
-
-	libusb_device_handle		*tmp;
-
-	unsigned int			serialnumber;
-	unsigned char			serial[256];
-	int				ret;
-
-	ret = libusb_get_device_descriptor(udev, &desc);
-	if (ret < 0) {
-		DBG("%s: failed to get device descriptor\n", __func__);
-		goto out0;
-	}
-
-	ret = libusb_open(udev, &tmp);
-	if (ret < 0 || !tmp) {
-		DBG("%s: couldn't open device\n", __func__);
-		goto out0;
-	}
-
-	if (libusb_kernel_driver_active(tmp, 0)) {
-		ret = libusb_detach_kernel_driver(tmp, 0);
-		if (ret < 0) {
-			DBG("%s: couldn't detach kernel driver\n", __func__);
-			goto out1;
-		}
-	}
-
-	ret = libusb_get_string_descriptor_ascii(tmp, desc.iSerialNumber,
-			serial, sizeof(serial));
-
-	if (ret < 0) {
-		DBG("%s: failed to get string descriptor\n", __func__);
-		goto out1;
-	}
-
-	ret = strtoul((const char *) &serial, NULL, 16);
-	if (ret < 0) {
-		DBG("%s: failed to get serial number\n", __func__);
-		goto out2;
-	}
-
-	serialnumber = ret;
-
-	if (serialnumber != iSerial) {
-		DBG("%s: not the serial number we want\n", __func__);
-		goto out2;
-	}
-
-out2:
-	libusb_attach_kernel_driver(tmp, 0);
-
-out1:
-	libusb_close(tmp);
-
-out0:
-	return ret;
-}
-
-static void print_device_attributes(libusb_device *udev)
-{
-	struct libusb_device_descriptor	desc;
-
-	libusb_device_handle		*tmp;
-
-	int				ret;
-
-	unsigned char			product[256] = { };
-
-	ret = libusb_get_device_descriptor(udev, &desc);
-	if (ret < 0) {
-		DBG("%s: failed to get device descriptor\n", __func__);
-		return;
-	}
-
-	ret = libusb_open(udev, &tmp);
-	if (ret < 0 || !tmp) {
-		DBG("%s: couldn't open device\n", __func__);
-		return;
-	}
-
-	if (libusb_kernel_driver_active(tmp, 0)) {
-		ret = libusb_detach_kernel_driver(tmp, 0);
-		if (ret < 0) {
-			DBG("%s: couldn't detach kernel driver\n", __func__);
-			libusb_close(tmp);
-			return;
-		}
-	}
-
-	if (desc.iProduct) {
-		ret = libusb_get_string_descriptor_ascii(tmp, desc.iProduct,
-				product, sizeof(product));
-
-		if (ret < 0) {
-			DBG("%s: failed to get product name\n", __func__);
-			libusb_attach_kernel_driver(tmp, 0);
-			libusb_close(tmp);
-			return;
-		}
-	}
-
-	fprintf(stdout, "%04x:%04x\t%s\n", desc.idVendor, desc.idProduct,
-			product);
-
-	libusb_attach_kernel_driver(tmp, 0);
-}
-
-static void list_devices(libusb_device **list, ssize_t count)
-{
-	int				i;
-
-	for (i = 0; i < count; i++) {
-		libusb_device *udev = list[i];
-
-		if (match_device_id(udev))
-			print_device_attributes(udev);
-	}
-}
-
-static libusb_device_handle *find_and_open_device(libusb_device **list,
-		ssize_t count, unsigned iSerial)
-{
-	libusb_device_handle		*udevh = NULL;
-	libusb_device			*found = NULL;
-	int				ret;
-	int				i;
-
-	DBG("%s: iterating over %zd devices\n", __func__, count);
-
-	for (i = 0; i < count; i++) {
-		libusb_device *udev = list[i];
-
-		ret = match_device_id(udev);
-		if (ret <= 0) {
-			DBG("%s: couldn't match device id\n", __func__);
-			continue;
-		}
-
-		if (iSerial) {
-			ret = match_device_serial_number(udev, iSerial);
-			if (ret < 0) {
-				DBG("%s: couldn't match serial number\n", __func__);
-				found = NULL;
-				break;
-			}
-		}
-
-		found = udev;
-		break;
-	}
-
-	if (found) {
-		ret = libusb_open(found, &udevh);
-		if (ret < 0 || !found) {
-			DBG("%s: couldn't open device\n", __func__);
-			goto out;
-		}
-	}
-
-out:
-	return udevh;
-}
-
-static int find_and_claim_interface(libusb_device_handle *udevh)
-{
-	int			ret;
-
-	if (libusb_kernel_driver_active(udevh, 0)) {
-		ret = libusb_detach_kernel_driver(udevh, 0);
-		if (ret < 0) {
-			DBG("%s: couldn't detach kernel driver\n", __func__);
-			goto out0;
-		}
-	}
-
-	ret = libusb_set_configuration(udevh, 1);
-	if (ret < 0) {
-		DBG("%s: couldn't set configuration 1\n", __func__);
-		goto out0;
-	}
-
-	ret = libusb_claim_interface(udevh, 0);
-	if (ret < 0) {
-		DBG("%s: couldn't claim interface 0\n", __func__);
-		goto out0;
-	}
-
-	ret = libusb_set_interface_alt_setting(udevh, 0, 0);
-	if (ret < 0) {
-		DBG("%s: couldn't set alternate setting 0\n", __func__);
-		goto out1;
-	}
-
-	return 0;
-
-out1:
-	libusb_release_interface(udevh, 0);
-
-out0:
-	return ret;
-}
-
-static void release_interface(libusb_device_handle *udevh)
-{
-	libusb_release_interface(udevh, 0);
-}
-
-static int set_led(libusb_device_handle *udevh, unsigned led, unsigned on)
-{
-	unsigned char		data[3];
-	unsigned char		length = 3;
-
-	data[0] = 0x00;
-	data[1] = led;
-	data[2] = on ? 0x00 : 0x0f;
-
-	return libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
-			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-			HID_SET_REPORT, HID_REPORT_OUT << 8, 0x00, data,
-			length, TIMEOUT);
-}
-
-static int set_switch(libusb_device_handle *udevh, unsigned port, unsigned on)
-{
-	int			ret;
-	unsigned char		data[5];
-	unsigned char		length = 3;
-
-	data[0] = type;
-	data[1] = port + 0x10;
-	data[2] = on & 0x01;
-
-	if (type == CLEWARE_TYPE_CONTACT) {
-		data[3] = 0x00;
-		data[4] = (1 << port);
-		length = 5;
-	}
-
-	ret =  libusb_control_transfer(udevh, LIBUSB_REQUEST_TYPE_CLASS |
-			LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-			HID_SET_REPORT, HID_REPORT_OUT << 8, 0x00, data,
-			length, TIMEOUT);
-	if (ret < 0)
-		return ret;
-	return 0;
-}
-
-static int get_switch(libusb_device_handle *udevh, unsigned port)
-{
-	int			transferred;
-	int			state = 0;
-	int			ret;
-	unsigned char		data[6];
-
-	ret = libusb_interrupt_transfer(udevh, CLEWARE_INT_IN_EP, data, 6,
-			&transferred, TIMEOUT);;
-	if (ret < 0) {
-		fprintf(stderr, "Failed to get report --> %d\n", ret);
-		return ret;
-	}
-
-	if (transferred < 6) {
-		fprintf(stderr, "size mismatch %d / 6\n", transferred);
-		return -1;
-	}
-
-	state = (data[0] & (1 << port));
-
-	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
-
-	return 0;
-}
-
-static int set_power(libusb_device_handle *udevh, unsigned port, unsigned on)
-{
-	int			ret;
-
-	if (port > num_ports) {
-		DBG("%s: this device doesn't have that many ports\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = set_switch(udevh, port - 1, on);
-	if (ret < 0) {
-		DBG("%s: failed to toggle switch %d\n", __func__, port);
-		return ret;
-	}
-
-	if (port == 1) {
-		ret = set_led(udevh, port - 1, on);
-		if (ret < 0) {
-			DBG("%s: couldn't toggle led %d\n", __func__, port);
-			return ret;
-		}
-
-		ret = set_led(udevh, port, !on);
-		if (ret < 0) {
-			DBG("%s: couldn't toggle led %d\n", __func__, port + 1);
-			return ret;
-		}
-	}
-
-	ret = get_switch(udevh, port -1);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static void usage(char *name)
-{
-	fprintf(stdout, "usage: %s [-0 | -1] [-s SerialNumber] [-d] [-h]\n\
-			-r, --read		Read switch state\n\
-			-0, --off		Switch it off\n\
-			-1, --on		Switch it on\n\
-			-s, --serial-number	Device's serial number\n\
-			-p, --port		port number\n\
-			-d, --debug		Enable debugging\n\
-			-h, --help		Print this\n", name);
-}
+#define for_each_device(devs, current)		\
+	for ((current) = (devs); (current); (current) = (current)->next)
 
 #define OPTION(n, h, v)		\
 {				\
@@ -444,46 +67,198 @@ static void usage(char *name)
 	.val		= v,	\
 }
 
-static struct option cleware_opts[] = {
-	OPTION("read",		0,	'r'),
+static const struct option cleware_opts[] = {
+	OPTION("read",		0, 	'r'),
 	OPTION("on",		0,	'0'),
 	OPTION("off",		0,	'1'),
 	OPTION("serial-number",	1,	's'),
 	OPTION("port",		1,	'p'),
 	OPTION("list",		0,	'l'),
-	OPTION("debug",		0,	'd'),
 	OPTION("help",		0,	'h'),
-	{  }	/* Terminating entry */
+	{  } /* Terminating entry */
 };
+
+static void usage(const char *name)
+{
+	fprintf(stdout, "usage: %s [[-l] | [[-p port] [-0 | -1] [-s serial-number]] | [-h]]\n\
+			-0, --off		Turn switch off\n\
+			-1, --on		Turn switch on\n\
+			-p, --port		Port number\n\
+			-r, --read		Read switch state\n\
+			-s, --serial-number	Device's serial number\n\
+			-h, --help		Show this help\n", name);
+}
+
+static void cleware_list_devices(struct hid_device_info *devs)
+{
+	struct hid_device_info *current;
+
+	for_each_device(devs, current) {
+		printf("Found: %ls\n", current->product_string);
+		printf("    vendor id: %04x\n", current->vendor_id);
+		printf("    product id: %04x\n", current->product_id);
+		printf("    manufacturer: %ls\n", current->manufacturer_string);
+		printf("    serial number: %ls\n", current->serial_number);
+		printf("    path: %s\n", current->path);
+		printf("\n");
+	}
+}
+
+static int cleware_open(struct cleware *c)
+{
+	struct hid_device_info *dev = c->dev;
+
+	c->handle = hid_open(dev->vendor_id, dev->product_id, c->serial);
+	if (!c->handle) {
+		fprintf(stderr, "can't open device %04x:%04x\n",
+				dev->vendor_id, dev->product_id);
+		return -1;
+	}
+
+	switch (dev->product_id) {
+	case CLEWARE_USB_SWITCH8:
+		c->type = 0x03;
+		break;
+	case CLEWARE_USB_SWITCH:
+	default:
+		c->type = 0x00;
+		break;
+	}
+
+	if (wcsstr(dev->product_string, L"Cutter"))
+		c->inverted = true;
+
+	return 0;
+}
+
+static int cleware_write(struct cleware *c)
+{
+	int ret;
+
+	ret =  hid_write(c->handle, c->report,
+			c->report_size + 1);
+
+	memset(c->report, 0x00, CLEWARE_HID_REPORT_SIZE);
+
+	return ret;
+}
+
+static int cleware_read(struct cleware *c)
+{
+	memset(c->report, 0x00, CLEWARE_HID_REPORT_SIZE);
+
+	return hid_read(c->handle, c->report, CLEWARE_HID_REPORT_SIZE);
+}
+
+static int cleware_set_led(struct cleware *c, unsigned int led, unsigned int on)
+{
+	c->report[1] = 0x00;
+	c->report[2] = led;
+	c->report[3] = on ? 0x00 : 0x0f;
+
+	c->report_size = 3;
+
+	return cleware_write(c);
+}
+
+static int cleware_set_switch(struct cleware *c, unsigned int port,
+		unsigned int on)
+{
+	c->report[1] = c->type;
+	c->report[2] = port + 0x10;
+	c->report[3] = !!on;
+
+	c->report_size = 3;
+
+	if (c->type == 0x03) {
+		c->report[4] = 0x00;
+		c->report[5] = (1 << port);
+		c->report_size = 5;
+	}
+
+	return cleware_write(c);
+}
+
+static int cleware_get_switch(struct cleware *c, unsigned int port)
+{
+	int state;
+	int ret;
+
+	ret = cleware_read(c);
+	if (ret < 0)
+		return ret;
+
+	state = (c->report[0] & (1 << port));
+	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
+
+	return 0;
+}
+
+static int cleware_set_power(struct cleware *c, unsigned int port,
+		unsigned int on)
+{
+	unsigned int state = on;
+	int ret;
+
+	if (c->inverted)
+		state = !state;
+
+
+	ret = cleware_set_switch(c, port - 1, state);
+	if (ret < 0)
+		return ret;
+
+	if (port == 1) {
+		ret = cleware_set_led(c, port - 1, state);
+		if (ret < 0)
+			return ret;
+
+		ret = cleware_set_led(c, port, !state);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = cleware_get_switch(c, port - 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 int main(int argc, char *argv[])
 {
-	libusb_context		*context;
-	libusb_device_handle	*udevh;
-	libusb_device		**list;
+	struct cleware *c;
+	struct hid_device_info *devs;
+	struct hid_device_info *dev = NULL;
+	wchar_t *serial = NULL;
+	int serial_length;
+	int read = 0;
+	int port = 1;
+	int on = 0;
+	int ret = 0;
 
-	unsigned		port = 1;
-	unsigned		iSerial = 0;
-	unsigned		list_devs = 0;
+	if (argc < 2) {
+		usage(argv[0]);
+		return 0;
+	}
 
-	ssize_t			count;
+	ret = hid_init();
+	if (ret)
+		goto out0;
 
-	int			read = 0;
-	int			ret = 0;
-	int			on = 0;
-
+	devs = hid_enumerate(CLEWARE_VENDOR_ID, 0);
 	while (ARRAY_SIZE(cleware_opts)) {
 		int		optidx = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "l01rp:s:dh", cleware_opts, &optidx);
+		opt = getopt_long(argc, argv, "l01rp:s:h", cleware_opts, &optidx);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
 		case 'l':
-			list_devs = 1;
-			break;
+			cleware_list_devices(devs);
+			goto out1;
 		case '0':
 			on = 0;
 			break;
@@ -497,71 +272,90 @@ int main(int argc, char *argv[])
 			read = 1;
 			break;
 		case 's':
-			iSerial = strtoul(optarg, NULL, 16);
-			break;
-		case 'd':
-			debug = 1;
+			serial_length = strlen(optarg) * sizeof(wchar_t) +
+				sizeof(wchar_t);
+			serial = malloc(serial_length);
+			if (!serial)
+				goto out1;
+
+			ret = swprintf(serial, serial_length, L"%hs", optarg);
+			if (ret < 0)
+				goto out1;
 			break;
 		case 'h': /* FALLTHROUGH */
 		default:
 			usage(argv[0]);
-			return 0;
+			goto out1;
 		}
 	}
 
-	/* initialize libusb */
-	libusb_init(&context);
+	/*
+	 * If serial is set, we need to go over the list of devices and find the
+	 * one which has the serial number passed via command line. If we can't
+	 * find such a device, then we should print and error message and show
+	 * list of devices again.
+	 *
+	 * Now, if serial is *NOT* set, then we will just open the first device
+	 * in the list.
+	 */
+	if (serial) {
+		struct hid_device_info *current;
 
-	/* get rid of debug messages */
-	libusb_set_debug(context, 0);
-
-	count = libusb_get_device_list(context, &list);
-	if (count < 0) {
-		DBG("%s: couldn't get device list\n", __func__);
-		ret = count;
-		goto out1;
+		for_each_device(devs, current) {
+			if (wcscasecmp(current->serial_number, serial) == 0) {
+				dev = current;
+				break;
+			}
+		}
+	} else {
+		dev = devs;
 	}
 
-	if (list_devs) {
-		list_devices(list, count);
-		goto out1;
-	}
-
-	udevh = find_and_open_device(list, count, iSerial);
-	if (!udevh) {
-		DBG("%s: couldn't find a suitable device\n", __func__);
+	if (!dev) {
+		fprintf(stderr, "device not found\n");
+		cleware_list_devices(devs);
+		ret = -1;
 		goto out2;
 	}
 
-	ret = find_and_claim_interface(udevh);
-	if (ret < 0) {
-		DBG("%s: couldn't claim interface\n", __func__);
+	c = malloc(sizeof(*c));
+	if (!c) {
+		ret = -1;
+		goto out2;
+	}
+
+	c->dev = dev;
+	c->vendor_id = dev->vendor_id;
+	c->product_id = dev->product_id;
+	c->serial = serial;
+
+	ret = cleware_open(c);
+	if (ret) {
+		cleware_list_devices(devs);
 		goto out2;
 	}
 
 	if (read) {
-		ret = get_switch(udevh, port - 1);
-		if (ret < 0)
+		ret = cleware_get_switch(c, port - 1);
+		if (ret)
 			goto out3;
 	} else {
-		ret = set_power(udevh, port, on);
-		if (ret < 0) {
-			DBG("%s: couldn't switch power %s\n", __func__,
-					on ? "on" : "off");
+		ret = cleware_set_power(c, port, on);
+		if (ret)
 			goto out3;
-		}
 	}
 
 out3:
-	release_interface(udevh);
+	free(c);
 
 out2:
-	libusb_close(udevh);
-	libusb_free_device_list(list, 1);
+	free(serial);
 
 out1:
-	libusb_exit(context);
+	hid_free_enumeration(devs);
+
+out0:
+	hid_exit();
 
 	return ret;
 }
-
