@@ -32,6 +32,12 @@
 #define false 0
 #define true !false
 
+/*
+ * It takes a long time for the internal device state to change, meanwhile we
+ * have to continue reading from Interrupt In endpoint.
+ */
+#define CLEWARE_NUM_READS	50
+
 #define CLEWARE_HID_REPORT_SIZE	65
 #define CLEWARE_VENDOR_ID	0x0d50
 
@@ -183,12 +189,19 @@ static int cleware_get_switch(struct cleware *c, unsigned int port)
 {
 	int state;
 	int ret;
+	int i;
 
-	ret = cleware_read(c);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < CLEWARE_NUM_READS; i++) {
+		ret = cleware_read(c);
+		if (ret < 0)
+			return ret;
+	}
 
 	state = (c->report[0] & (1 << port));
+
+	if (c->inverted)
+		state = !state;
+
 	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
 
 	return 0;
@@ -202,7 +215,6 @@ static int cleware_set_power(struct cleware *c, unsigned int port,
 
 	if (c->inverted)
 		state = !state;
-
 
 	ret = cleware_set_switch(c, port - 1, state);
 	if (ret < 0)
