@@ -40,7 +40,7 @@
 #define __maybe_unused	__attribute__((unused))
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define DEFAULT_TIMEOUT	2000	/* ms */
+#define DEFAULT_TIMEOUT	5000	/* ms */
 
 #define X_SIZE		1920
 #define Y_SIZE		1080
@@ -61,6 +61,7 @@ static unsigned char frame[FULL_SIZE];
 
 static struct option testmode_opts[] = {
 	OPTION("device",	1, 'D'),
+	OPTION("help",		0, 'h'),
 	{  }	/* Terminating entry */
 };
 
@@ -98,15 +99,21 @@ static int do_test(libusb_device_handle *udevh)
 	return 0;
 }
 
+static void usage(const char *cmd)
+{
+	fprintf(stdout, "Usage: %s -D vid:pid [-h]\n", cmd);
+}
+
 int main(int argc, char *argv[])
 {
 	libusb_context		*context;
 	libusb_device_handle	*udevh;
 
-	unsigned		vid = 0;
-	unsigned		pid = 0;
+	unsigned		vid = 0xaaaa;
+	unsigned		pid = 0xbbbb;
 
 	int			ret = 0;
+	int			i;
 
 	while (1) {
 		int		optidx;
@@ -114,7 +121,7 @@ int main(int argc, char *argv[])
 
 		char		*token;
 
-		opt = getopt_long(argc, argv, "D:", testmode_opts, &optidx);
+		opt = getopt_long(argc, argv, "hD:", testmode_opts, &optidx);
 		if (opt == -1)
 			break;
 
@@ -124,6 +131,10 @@ int main(int argc, char *argv[])
 			vid = strtoul(token, NULL, 16);
 			token = strtok(NULL, ":");
 			pid = strtoul(token, NULL, 16);
+			break;
+		case 'h':
+			usage(argv[0]);
+			exit(0);
 			break;
 		default:
 			exit(-1);
@@ -139,7 +150,8 @@ int main(int argc, char *argv[])
 		goto out0;
 	}
 
-	memset(frame, 0x55, FULL_SIZE);
+	for (i = 0; i < FULL_SIZE; i++)
+		frame[i] = (i % 94) + 33; /* only printable ascii characters */
 
 	ret = do_test(udevh);
 	if (ret < 0) {
