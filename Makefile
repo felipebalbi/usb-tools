@@ -68,6 +68,7 @@ BINARIES = acmc			\
 	   testmode		\
 	   testusb		\
            uda			\
+           uda-client		\
 	   usbpwrtest
 
 all: hidapi usb rt pthread generic
@@ -84,7 +85,7 @@ hidapi: cleware
 
 rt: msc
 
-pthread: testusb
+pthread: testusb uda-client
 
 generic: serialc acmc switchbox seriald acmd
 
@@ -150,6 +151,11 @@ testusb: testusb.o
 testusb.o: testusb.c
 	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
+uda-client: uda-client.o
+	$(QUIET_LINK) $(CROSS_COMPILE)$(CC) $< -o $@ $(CFLAGS) $(LIBPTHREAD_LIBS)
+
+uda-client.o: uda-client.c
+	$(QUIET_CC) $(CROSS_COMPILE)$(CC) $< -o $@ -c $(CFLAGS)
 
 
 # Tools which need librt go here
