@@ -28,6 +28,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+RESULT=0
+
 TEMP=`getopt -o "o:c:h" -n 'msc.sh' -- "$@"`
 
 eval set -- "$TEMP"
@@ -60,6 +62,7 @@ do_test() {
 
   msc -n -o $OUTPUT -c $COUNT $* 1> /dev/null 2> /dev/null
   if [ $? -ne 0 ]; then
+    RESULT=$(($RESULT + 1))
     echo "${RED}FAIL${NC}"
   else
     echo "${GREEN}OK${NC}"
@@ -278,3 +281,4 @@ do_test -t 18 -s 64k -p 14
 printf "test 18p: write 0xff and read it back			"
 do_test -t 18 -s 64k -p 15
 
+exit $RESULT
