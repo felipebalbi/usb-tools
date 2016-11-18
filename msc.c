@@ -1797,6 +1797,7 @@ int main(int argc, char *argv[])
 	msc->fd = open(output, flags);
 	if (msc->fd < 0) {
 		DBG("%s: could not open %s\n", __func__, output);
+		ret = -1;
 		goto err2;
 	}
 
