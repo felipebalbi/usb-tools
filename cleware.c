@@ -38,6 +38,12 @@
  */
 #define CLEWARE_NUM_READS	50
 
+/*
+ * At least USB Cutter is flakey in that it doesn't always switch if we issue a
+ * single Switch command.
+ */
+#define CLEWARE_NUM_WRITES	5
+
 #define CLEWARE_HID_REPORT_SIZE	65
 #define CLEWARE_VENDOR_ID	0x0d50
 
@@ -170,19 +176,28 @@ static int cleware_set_led(struct cleware *c, unsigned int led, unsigned int on)
 static int cleware_set_switch(struct cleware *c, unsigned int port,
 		unsigned int on)
 {
-	c->report[1] = c->type;
-	c->report[2] = port + 0x10;
-	c->report[3] = !!on;
+	int ret;
+	int i;
 
-	c->report_size = 3;
+	for (i = 0; i < CLEWARE_NUM_WRITES; i++) {
+		c->report[1] = c->type;
+		c->report[2] = port + 0x10;
+		c->report[3] = !!on;
 
-	if (c->type == 0x03) {
-		c->report[4] = 0x00;
-		c->report[5] = (1 << port);
-		c->report_size = 5;
+		c->report_size = 3;
+
+		if (c->type == 0x03) {
+			c->report[4] = 0x00;
+			c->report[5] = (1 << port);
+			c->report_size = 5;
+		}
+
+		ret = cleware_write(c);
+		if (ret < 0)
+			return ret;
 	}
 
-	return cleware_write(c);
+	return 0;
 }
 
 static int cleware_get_switch(struct cleware *c, unsigned int port)
@@ -196,6 +211,7 @@ static int cleware_get_switch(struct cleware *c, unsigned int port)
 		if (ret < 0)
 			return ret;
 	}
+
 
 	state = (c->report[0] & (1 << port));
 
