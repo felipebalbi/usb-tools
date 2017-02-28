@@ -1,7 +1,12 @@
 language: c
-before_install:
-- sudo apt-get update -qq
-- sudo apt-get install -qq libusb-1.0-0-dev
+addons:
+  apt:
+    packages:
+    - libhidapi-dev
+    - libhidapi-hidraw0
+    - libhidapi-libusb0
+    - libusb-1.0-0-dev
+    - libusb-1.0
 script: ./autogen.sh && make
 compiler:
 - clang
