@@ -4,10 +4,7 @@ addons:
     sources: debian-sid
     packages:
     - libhidapi-dev
-    - libhidapi-hidraw0
-    - libhidapi-libusb0
     - libusb-1.0-0-dev
-    - libusb-1.0
 script: ./autogen.sh && make
 compiler:
 - clang
