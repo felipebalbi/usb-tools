@@ -1,8 +1,7 @@
 language: c
 addons:
   apt:
-    sources:
-    - precise
+    sources: debian-sid
     packages:
     - libhidapi-dev
     - libhidapi-hidraw0
