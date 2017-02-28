@@ -19,6 +19,7 @@
  * along with USB Tools. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <time.h>
 #include <string.h>

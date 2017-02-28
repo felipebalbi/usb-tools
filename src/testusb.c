@@ -29,6 +29,7 @@
  * refer to <URL:http://www.linux-usb.org/usbtest/>.
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <string.h>
 #include <ftw.h>

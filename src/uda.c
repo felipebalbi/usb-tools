@@ -1,7 +1,7 @@
 /**
- * device-reset.c - Infinite loop to reset a USB device.
+ * uda.c - Enter USB testmodes
  *
- * Copyright (C) 2013-2016 Felipe Balbi <felipe.balbi@linux.intel.com>
+ * Copyright (C) 2016 Felipe Balbi <felipe.balbi@linux.intel.com>
  *
  * This file is part of the USB Verification Tools Project
  *
@@ -30,33 +30,79 @@
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
+#include <config.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
+
+#define __maybe_unused	__attribute__((unused))
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define DEFAULT_TIMEOUT	2000	/* ms */
+#define DEFAULT_TIMEOUT	5000	/* ms */
+
+#define X_SIZE		1920
+#define Y_SIZE		1080
+
+#define FRAME_SIZE	((X_SIZE) * (Y_SIZE))
+#define UV_SIZE		((FRAME_SIZE) / 2)
+
+#define FULL_SIZE	((FRAME_SIZE) + (UV_SIZE))
+
+static unsigned char frame[FULL_SIZE];
 
 #define OPTION(n, h, v)			\
 {					\
-	.name		= n,		\
+	.name		= #n,		\
 	.has_arg	= h,		\
 	.val		= v,		\
 }
 
-static struct option device_reset_opts[] = {
-	OPTION("help",		0, 'h'),
-	OPTION("count",		1, 'c'),
+static struct option testmode_opts[] = {
 	OPTION("device",	1, 'D'),
+	OPTION("help",		0, 'h'),
 	{  }	/* Terminating entry */
 };
 
-static void usage(char *cmd)
+static int do_test(libusb_device_handle *udevh)
 {
-	fprintf(stdout, "%s -D VID:PID -c count\n", cmd);
+	int				transferred;
+	int				ret;
+	int				i;
+
+	ret = libusb_claim_interface(udevh, 0);
+	if (ret < 0) {
+		fprintf(stderr, "Can't claim interface 0\n");
+		return ret;
+	}
+
+
+	for (i = 0; i < 10; i++) {
+		ret = libusb_bulk_transfer(udevh, 1, frame, FULL_SIZE,
+				&transferred, DEFAULT_TIMEOUT);
+		if (ret < 0) {
+			fprintf(stderr, "failed %d/%d -> %s\n", transferred,
+					FULL_SIZE, libusb_error_name(ret));
+			libusb_release_interface(udevh, 0);
+			return ret;
+		}
+
+		if (transferred < FULL_SIZE) {
+			fprintf(stderr, "Couldn't transfer all bytes %d/%d",
+					transferred, FULL_SIZE);
+			libusb_release_interface(udevh, 0);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void usage(const char *cmd)
+{
+	fprintf(stdout, "Usage: %s -D vid:pid [-h]\n", cmd);
 }
 
 int main(int argc, char *argv[])
@@ -64,9 +110,8 @@ int main(int argc, char *argv[])
 	libusb_context		*context;
 	libusb_device_handle	*udevh;
 
-	unsigned		count = 1;
-	unsigned		vid = 0;
-	unsigned		pid = 0;
+	unsigned		vid = 0xaaaa;
+	unsigned		pid = 0xbbbb;
 
 	int			ret = 0;
 	int			i;
@@ -77,7 +122,7 @@ int main(int argc, char *argv[])
 
 		char		*token;
 
-		opt = getopt_long(argc, argv, "D:c:h", device_reset_opts, &optidx);
+		opt = getopt_long(argc, argv, "hD:", testmode_opts, &optidx);
 		if (opt == -1)
 			break;
 
@@ -88,12 +133,11 @@ int main(int argc, char *argv[])
 			token = strtok(NULL, ":");
 			pid = strtoul(token, NULL, 16);
 			break;
-		case 'c':
-			count = strtoul(optarg, NULL, 10);
-			break;
-		case 'h': /* FALLTHROUGH */
-		default:
+		case 'h':
 			usage(argv[0]);
+			exit(0);
+			break;
+		default:
 			exit(-1);
 		}
 	}
@@ -102,22 +146,23 @@ int main(int argc, char *argv[])
 
 	udevh = libusb_open_device_with_vid_pid(context, vid, pid);
 	if (!udevh) {
-		perror("open");
+		perror("couldn't open device");
 		ret = -ENODEV;
 		goto out0;
 	}
 
-	for (i = 0; i < count; i++) {
-		ret = libusb_reset_device(udevh);
-		printf("Reset #%d: ", i + 1);
+	for (i = 0; i < FULL_SIZE; i++)
+		frame[i] = (i % 94) + 33; /* only printable ascii characters */
 
-		if (ret < 0) {
-			printf("FAILED\n");
-		} else {
-			printf("PASSED\n");
-		}
+	ret = do_test(udevh);
+	if (ret < 0) {
+		printf("failed\n");
+		goto out1;
 	}
 
+	printf("passed\n");
+
+out1:
 	libusb_close(udevh);
 
 out0:
@@ -125,3 +170,4 @@ out0:
 
 	return ret;
 }
+
