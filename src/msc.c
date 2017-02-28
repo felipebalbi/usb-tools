@@ -1698,7 +1698,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 't':
-			test = atoi(optarg);
+			test = strtoul(optarg, NULL, 10);
 			if (test < 0) {
 				DBG("%s: invalid parameter\n", __func__);
 				goto err0;
