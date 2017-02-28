@@ -1,11 +1,19 @@
 language: c
-addons:
-  apt:
-    sources: debian-sid
-    packages:
-    - libhidapi-dev
-    - libusb-1.0-0-dev
-script: ./autogen.sh && make
+
+os: linux
+dist: trusty
+sudo: required
+
 compiler:
-- clang
-- gcc
+    - clang
+    - gcc
+
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -y libhidapi-dev libusb-1.0-0-dev
+
+before_script:
+    - ./autogen.sh
+
+script:
+    - make
