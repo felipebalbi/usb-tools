@@ -17,6 +17,7 @@ tags
 TAGS
 !.gitignore
 !.mailmap
+!.travis.yml
 
 # stgit generated dirs
 patches-*
