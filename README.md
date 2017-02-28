@@ -1,5 +1,7 @@
 # USB Tools
 
+[![Build Status](https://travis-ci.org/felipebalbi/usb-tools.svg?branch=master)](https://travis-ci.org/felipebalbi/usb-tools)
+
 ## Introduction
 
 This project aims at creating standalone and simplistic tools for
