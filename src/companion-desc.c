@@ -52,7 +52,7 @@
 
 static struct option testmode_opts[] = {
 	OPTION("device",	1, 'D'),
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 /* redefined here until libusb defines its own */

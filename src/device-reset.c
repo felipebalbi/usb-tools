@@ -52,7 +52,7 @@ static struct option device_reset_opts[] = {
 	OPTION("help",		0, 'h'),
 	OPTION("count",		1, 'c'),
 	OPTION("device",	1, 'D'),
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 static void usage(char *cmd)

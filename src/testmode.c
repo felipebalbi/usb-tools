@@ -66,7 +66,7 @@ static struct option testmode_opts[] = {
 	OPTION("help",		0, 'h'),
 	OPTION("test",		1, 't'),
 	OPTION("device",	1, 'D'),
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 static int bad_descriptor_test(libusb_device_handle *udevh)

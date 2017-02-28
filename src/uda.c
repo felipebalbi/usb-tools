@@ -63,7 +63,7 @@ static unsigned char frame[FULL_SIZE];
 static struct option testmode_opts[] = {
 	OPTION("device",	1, 'D'),
 	OPTION("help",		0, 'h'),
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 static int do_test(libusb_device_handle *udevh)

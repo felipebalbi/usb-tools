@@ -1617,7 +1617,7 @@ static struct option msc_opts[] = {
 		.name		= "help",
 		.val		= 'h',
 	},
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 int main(int argc, char *argv[])

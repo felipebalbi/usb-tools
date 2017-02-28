@@ -88,7 +88,7 @@ static const struct option cleware_opts[] = {
 	OPTION("port",		1,	'p'),
 	OPTION("list",		0,	'l'),
 	OPTION("help",		0,	'h'),
-	{ NULL } /* Terminating entry */
+	{  } /* Terminating entry */
 };
 
 static void usage(const char *name)
