@@ -40,10 +40,6 @@
 
 static unsigned debug;
 
-#define DBG(fmt, args...)				\
-	if (debug)					\
-		fprintf(stderr, "%s: " fmt, __func__, ## args)
-
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 #define DEFAULT_TIMEOUT	2000	/* ms */
 
@@ -70,7 +66,7 @@ static struct option testmode_opts[] = {
 	OPTION("help",		0, 'h'),
 	OPTION("test",		1, 't'),
 	OPTION("device",	1, 'D'),
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 static int bad_descriptor_test(libusb_device_handle *udevh)
@@ -82,23 +78,15 @@ static int bad_descriptor_test(libusb_device_handle *udevh)
 	memset(buf, 0x00, sizeof(buf));
 
 	ret = libusb_get_descriptor(udevh, 0xcc, 0, buf, sizeof(buf));
-	if (ret >= 0) {
-		DBG("this should have failed\n");
+	if (ret >= 0)
 		return -EINVAL;
-	}
 
 	ret = libusb_get_device_descriptor(libusb_get_device(udevh),
 			&desc);
-	if (ret < 0) {
-		DBG("failed to get descriptor\n");
-		return ret;
-	}
-
-	ret = libusb_reset_device(udevh);
 	if (ret < 0)
-		DBG("failed to reset device\n");
+		return ret;
 
-	return ret;
+	return libusb_reset_device(udevh);
 }
 
 static int do_test(libusb_device_handle *udevh, int test)
@@ -203,16 +191,13 @@ int main(int argc, char *argv[])
 
 	udevh = libusb_open_device_with_vid_pid(context, vid, pid);
 	if (!udevh) {
-		DBG("couldn't open %04x:%04x\n", vid, pid);
 		ret = -ENODEV;
 		goto out0;
 	}
 
 	ret = start_testmode(udevh, testmode);
-	if (ret < 0) {
-		DBG("couldn't start test '%s' err %d\n", testmode, ret);
+	if (ret < 0)
 		goto out1;
-	}
 
 out1:
 	libusb_close(udevh);

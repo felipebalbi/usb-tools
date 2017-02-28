@@ -40,11 +40,6 @@
 static unsigned char debug;
 
 #define ENABLE_DBG()	debug = 1
-
-#define DBG(fmt, args...)				\
-	if (debug)					\
-		printf(fmt, ## args)
-
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 /**
@@ -72,9 +67,10 @@ static struct usb_serial_test _serial;
 
 static void signal_hup(int sig)
 {
+	if (debug)
+		printf("received signal %d\n", sig);
 	hangup = 1;
 	close(_serial.fd);
-	DBG("%s: caught signal %d\n", __func__, sig);
 }
 
 /**
@@ -91,16 +87,13 @@ static int tty_init(int fd)
 	cfmakeraw(&term);
 
 	ret = tcflush(fd, TCIOFLUSH);
-	if (ret < 0) {
-		DBG("%s: flush failed\n", __func__);
+	if (ret < 0)
 		goto err;
-	}
 
 	ret = tcsetattr(fd, TCSANOW, &term);
-	if (ret < 0) {
-		DBG("%s: couldn't set attributes\n", __func__);
+	if (ret < 0)
 		goto err;
-	}
+
 err:
 	return ret;
 }
@@ -111,20 +104,15 @@ err:
  */
 static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 {
-	int		done = 0;
+	unsigned int	done = 0;
 	int		ret;
 
 	char		*buf = serial->buf;
 
-	DBG("%s: writting %d bytes\n", __func__, bytes);
-
 	while (done < bytes) {
 		ret = write(serial->fd, buf + done, bytes - done);
-		if (ret < 0) {
-			DBG("%s: failed to write %u bytes\n",
-					__func__, bytes);
+		if (ret < 0)
 			goto err;
-		}
 
 		done += ret;
 		serial->amount_write += ret;
@@ -144,33 +132,27 @@ err:
  */
 static int do_read(struct usb_serial_test *serial)
 {
-	unsigned	size = serial->size;
-	int		done = 0;
+	unsigned int	size = serial->size;
+	unsigned int	done = 0;
 	int		ret;
 
 	char		*buf = serial->buf;
 
 	while (done < size) {
 		ret = read(serial->fd, buf + done, size - done);
-		if (ret < 0) {
-			DBG("%s: failed to read\n", __func__);
+		if (ret < 0)
 			goto err;
-		}
 
 		size = (buf[0] << 24)
 			| (buf[1] << 16)
 			| (buf[2] << 8)
 			| (buf[3]);
-		if (size > serial->size) {
-			DBG("%s: corrupted size %d\n", __func__, size);
+		if (size > serial->size)
 			goto err;
-		}
 
 		done += ret;
 		serial->amount_read += ret;
 	}
-
-	DBG("%s: read %d bytes\n", __func__, done);
 
 	return done;
 
@@ -191,10 +173,8 @@ static int do_poll(struct usb_serial_test *serial)
 	pfd.events = POLLIN;
 
 	ret = poll(&pfd, 1, -1);
-	if (ret <= 0) {
-		DBG("%s: poll failed\n", __func__);
+	if (ret <= 0)
 		goto err;
-	}
 
 	return 0;
 
@@ -209,32 +189,24 @@ static int do_open(const char *pathname, int flags)
 	pid_t		pid;
 
 	fd = open(pathname, flags);
-	if (fd < 0) {
-		DBG("%s: open failed\n", __func__);
+	if (fd < 0)
 		goto err0;
-	}
 
 	/* Make sure the file is a character device */
-	if (fstat(fd, &st)) {
-		DBG("%s failed to stat %s\n", __func__, pathname);
+	if (fstat(fd, &st))
 		goto err1;
-	}
+
 	if (!S_ISCHR(st.st_mode)) {
-		DBG("%s: \"%s\" is not character device\n",
-			__func__, pathname);
 		errno = EBADF;
 		goto err1;
 	}
 
 	if (isatty(fd)) {
-		DBG("%s is tty\n", pathname);
-
 		if (!_serial.new_session) {
 			close(fd);
 
 			pid = fork();
 			if (pid > 0) {
-				DBG("%s: forked a child process\n", __func__);
 				/*
 				  Parent foreground process is killed
 				  on demand disposing of child background
@@ -243,30 +215,23 @@ static int do_open(const char *pathname, int flags)
 				while (1)
 					sleep(1);
 			} else if (pid == -1) {
-				DBG("%s: fork failed\n", __func__);
 				goto err0;
 			}
 
 			prctl(PR_SET_PDEATHSIG, SIGKILL);
 
-			if (setsid() < 0) {
-				DBG("%s: setsid failed\n", __func__);
+			if (setsid() < 0)
 				goto err0;
-			}
 
 			fd = open(pathname, flags);
-			if (fd < 0) {
-				DBG("%s: open failed\n", __func__);
+			if (fd < 0)
 				goto err0;
-			}
 
 			_serial.new_session = 1;
 		}
 
-		if (tty_init(fd) < 0) {
-			DBG("%s: tty_init failed\n", __func__);
+		if (tty_init(fd) < 0)
 			goto err1;
-		}
 	}
 
 	return fd;
@@ -334,7 +299,7 @@ static struct option serial_opts[] = {
 		.name		= "help",
 		.val		= 'h',
 	},
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 int main(int argc, char *argv[])
@@ -384,8 +349,6 @@ int main(int argc, char *argv[])
 		goto err0;
 	}
 
-	DBG("%s: opening %s\n", __func__, file);
-
 	serial->fd = do_open(file, O_RDWR);
 	if (serial->fd < 0) {
 		fprintf(stderr, "%s: failed to open %s: %s\n",
@@ -393,8 +356,6 @@ int main(int argc, char *argv[])
 		ret = 1;
 		goto err0;
 	}
-
-	DBG("%s: buffer size %d\n", __func__, size);
 
 	serial->size = size;
 

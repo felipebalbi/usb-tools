@@ -50,13 +50,6 @@ static unsigned debug;
 static struct timespec		start;
 static struct timespec		end;
 
-#define DBG(fmt, args...)				\
-	if (debug)					\
-		printf(fmt, ## args)
-
-
-#define ERR(fmt, args...) fprintf(stderr, fmt, ## args)
-
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 struct usb_msc_test {
@@ -146,10 +139,8 @@ static unsigned char *alloc_buffer(unsigned size)
 	void			*tmp;
 	int			ret;
 
-	if (size == 0) {
-		DBG("%s: cannot allocate a zero sized buffer\n", __func__);
+	if (size == 0)
 		return NULL;
-	}
 
 	ret = posix_memalign(&tmp, getpagesize(), size);
 	if (ret)
@@ -167,18 +158,14 @@ static int alloc_and_init_buffer(struct usb_msc_test *msc)
 	int			ret = -ENOMEM;
 
 	msc->txbuf = alloc_buffer(msc->size);
-	if (!msc->txbuf) {
-		DBG("%s: unable to allocate txbuf\n", __func__);
+	if (!msc->txbuf)
 		goto err0;
-	}
 
 	init_buffer(msc);
 
 	msc->rxbuf = alloc_buffer(msc->size);
-	if (!msc->rxbuf) {
-		DBG("%s: unable to allocate rxbuf\n", __func__);
+	if (!msc->rxbuf)
 		goto err1;
-	}
 
 	return 0;
 
@@ -207,10 +194,11 @@ static float throughput(struct timespec *start, struct timespec *end, size_t siz
  * each test case implementation is required to call this function
  * in order for the user to get progress report.
  */
-static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case test, int show_tput)
+static void report_progress(struct usb_msc_test *msc,
+		enum usb_msc_test_case test, int show_tput)
 {
 	float		transferred = 0;
-	int		i;
+	unsigned int	i;
 	char		unit = ' ';
 
 	transferred = (float) msc->transferred;
@@ -248,7 +236,7 @@ static void report_progress(struct usb_msc_test *msc, enum usb_msc_test_case tes
  */
 static int do_write(struct usb_msc_test *msc, unsigned bytes)
 {
-	int			done = 0;
+	unsigned int		done = 0;
 	int			ret = -EINVAL;
 
 	unsigned char		*buf = msc->txbuf;
@@ -257,16 +245,12 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 	while (done < bytes) {
 		unsigned	size = bytes - done;
 
-		if (size > msc->pempty) {
-			DBG("%s: size too big\n", __func__);
+		if (size > msc->pempty)
 			size = msc->pempty;
-		}
 
 		ret = write(msc->fd, buf + done, size);
-		if (ret < 0) {
-			DBG("%s: write failed\n", __func__);
+		if (ret < 0)
 			goto err;
-		}
 
 		done += ret;
 		msc->pempty -= ret;
@@ -274,12 +258,10 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		if (msc->pempty == 0) {
 			off_t		pos;
 
-			DBG("%s: restarting\n", __func__);
 			msc->pempty = msc->psize;
 			done = 0;
 			pos = lseek(msc->fd, 0, SEEK_SET);
 			if (pos < 0) {
-				DBG("%s: couldn't seek the start\n", __func__);
 				ret = (int) pos;
 				goto err;
 			}
@@ -305,7 +287,7 @@ err:
  */
 static int do_read(struct usb_msc_test *msc, unsigned bytes)
 {
-	int			done = 0;
+	unsigned int		done = 0;
 	int			ret;
 
 	unsigned char		*buf = msc->rxbuf;
@@ -314,15 +296,12 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 	while (done < bytes) {
 		ret = read(msc->fd, buf + done, bytes - done);
 		if (ret < 0) {
-			DBG("%s: read failed\n", __func__);
 			perror("do_read");
 			goto err;
 		}
 
-		if (ret == 0) {
-			DBG("%s: read returned 0 bytes\n", __func__);
+		if (ret == 0)
 			goto err;
-		}
 
 		done += ret;
 		msc->transferred += ret;
@@ -338,7 +317,7 @@ err:
 
 static void __maybe_unused hexdump(char *buf, unsigned size)
 {
-	int			i;
+	unsigned int		i;
 
 	for (i = 0; i < size; i++) {
 		if (i && ((i % 16) == 0))
@@ -384,21 +363,18 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	ret = writev(msc->fd, iov, count);
-	if (ret < 0) {
-		DBG("%s: writev failed\n", __func__);
+	if (ret < 0)
 		goto err;
-	}
+
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->write_tput += throughput(&start, &end, ret);
 
 	msc->pempty -= ret;
 
 	if (msc->pempty == 0) {
-		DBG("%s: restarting\n", __func__);
 		msc->pempty = msc->psize;
 		pos = lseek(msc->fd, 0, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: couldn't seek the start\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -408,7 +384,6 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
 		ret = (int) pos;
-		DBG("%s: couldn't seek current offset\n", __func__);
 		goto err;
 	}
 
@@ -433,10 +408,9 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 	ret = readv(msc->fd, iov, bytes);
-	if (ret < 0) {
-		DBG("%s: readv failed\n", __func__);
+	if (ret < 0)
 		goto err;
-	}
+
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->read_tput += throughput(&start, &end, ret);
 	msc->transferred += ret;
@@ -582,7 +556,6 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -599,7 +572,6 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
 			ret = (int) pos;
-			DBG("%s: lseek failed\n", __func__);
 			goto err;
 		}
 
@@ -682,7 +654,6 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
 		ret = (int) pos;
-		DBG("%s: lseek failed\n", __func__);
 		goto err;
 	}
 
@@ -698,7 +669,6 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
 			ret = (int) pos;
-			DBG("%s: lseek failed\n", __func__);
 			goto err;
 		}
 
@@ -781,7 +751,6 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
 		ret = (int) pos;
-		DBG("%s: lseek failed\n", __func__);
 		goto err;
 	}
 
@@ -795,10 +764,8 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 			goto err;
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
-		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
+		if (pos < 0)
 			goto err;
-		}
 
 		ret = do_readv(msc, riov, 8);
 		if (ret < 0)
@@ -835,7 +802,6 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -872,7 +838,6 @@ static int do_test_lseek_past_last(struct usb_msc_test *msc)
 		pos = lseek(msc->fd, msc->psize + msc->sect_size,
 				SEEK_SET);
 		if (pos >= 0) {
-			DBG("%s: lseek passed\n", __func__);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -904,7 +869,6 @@ static int do_test_read_past_last(struct usb_msc_test *msc)
 		pos = lseek(msc->fd, msc->psize - msc->size + msc->sect_size,
 				SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -956,7 +920,6 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -972,7 +935,6 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1026,7 +988,6 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -1042,7 +1003,6 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1096,7 +1056,6 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -1112,7 +1071,6 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1166,7 +1124,6 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -1182,7 +1139,6 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1236,7 +1192,6 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 
 	pos = lseek(msc->fd, 0, SEEK_CUR);
 	if (pos < 0) {
-		DBG("%s: lseek failed\n", __func__);
 		ret = (int) pos;
 		goto err;
 	}
@@ -1252,7 +1207,6 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 
 		pos = lseek(msc->fd, msc->offset - len, SEEK_SET);
 		if (pos < 0) {
-			DBG("%s: lseek failed\n", __func__);
 			ret = (int) pos;
 			goto err;
 		}
@@ -1663,7 +1617,7 @@ static struct option msc_opts[] = {
 		.name		= "help",
 		.val		= 'h',
 	},
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 int main(int argc, char *argv[])
@@ -1699,10 +1653,8 @@ int main(int argc, char *argv[])
 
 		case 't':
 			test = strtoul(optarg, NULL, 10);
-			if (test < 0) {
-				DBG("%s: invalid parameter\n", __func__);
+			if (test < 0)
 				goto err0;
-			}
 			break;
 
 		case 's':
@@ -1729,8 +1681,6 @@ int main(int argc, char *argv[])
 
 			size = atoi(optarg);
 			if (size == 0) {
-				DBG("%s: can't do it with zero length buffer\n",
-						__func__);
 				ret = -EINVAL;
 				goto err0;
 			}
@@ -1739,20 +1689,16 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			count = atoi(optarg);
-			if (count <= 0) {
-				DBG("%s: invalid parameter\n", __func__);
+			if (count <= 0)
 				goto err0;
-			}
 			break;
 		case 'n':
 			flags |= O_DSYNC;
 			break;
 		case 'p':
 			pattern = atoi(optarg);
-			if (pattern > ARRAY_SIZE(msc_patterns)) {
-				DBG("%s: invalid pattern\n", __func__);
+			if (pattern > ARRAY_SIZE(msc_patterns))
 				goto err0;
-			}
 			break;
 		case 'd':
 			debug = 1;
@@ -1766,21 +1712,17 @@ int main(int argc, char *argv[])
 	}
 
 	if (!output) {
-		DBG("%s: need a file to open\n", __func__);
 		ret = -EINVAL;
 		goto err0;
 	}
 
 	msc = malloc(sizeof(*msc));
 	if (!msc) {
-		DBG("%s: unable to allocate memory\n", __func__);
 		ret = -ENOMEM;
 		goto err0;
 	}
 
 	memset(msc, 0x00, sizeof(*msc));
-
-	DBG("%s: buffer size %d\n", __func__, size);
 
 	msc->count = count;
 	msc->size = size;
@@ -1788,31 +1730,22 @@ int main(int argc, char *argv[])
 	msc->pattern = pattern;
 
 	ret = alloc_and_init_buffer(msc);
-	if (ret < 0) {
-		DBG("%s: failed to alloc and initialize buffers\n", __func__);
+	if (ret < 0)
 		goto err1;
-	}
-
-	DBG("%s: opening %s\n", __func__, output);
 
 	msc->fd = open(output, flags);
 	if (msc->fd < 0) {
-		DBG("%s: could not open %s\n", __func__, output);
 		ret = -1;
 		goto err2;
 	}
 
 	ret = ioctl(msc->fd, BLKGETSIZE64, &blksize);
-	if (ret < 0 || blksize == 0) {
-		DBG("%s: could not get block device size\n", __func__);
+	if (ret < 0 || blksize == 0)
 		goto err3;
-	}
 
 	ret = ioctl(msc->fd, BLKSSZGET, &sect_size);
-	if (ret < 0 || sect_size == 0) {
-		DBG("%s: could not get sector size\n", __func__);
+	if (ret < 0 || sect_size == 0)
 		goto err3;
-	}
 
 	msc->psize = blksize;
 	msc->pempty = blksize;
@@ -1828,10 +1761,8 @@ int main(int argc, char *argv[])
 
 	ret = do_test(msc, test);
 
-	if (ret < 0) {
-		DBG("%s: test failed\n", __func__);
+	if (ret < 0)
 		goto err3;
-	}
 
 	close(msc->fd);
 	free(msc->txbuf);

@@ -101,7 +101,7 @@ out0:
 	return size;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	struct uda_thread_info	*info;
 

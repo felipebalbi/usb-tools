@@ -50,10 +50,6 @@ static struct timeval		end;
 
 static int alive = 1;
 
-#define DBG(fmt, args...)				\
-	if (debug)					\
-		printf(fmt, ## args)
-
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 #define TIMEOUT			2000	/* ms */
 #define	MAX_USBFS_BUFFER_SIZE	16384
@@ -152,7 +148,8 @@ static char	*units[] = {
  */
 void signal_exit(int sig)
 {
-
+	if (debug)
+		printf("received signal %d\n", sig);
 	alive = 0;
 }
 
@@ -162,7 +159,7 @@ void signal_exit(int sig)
  */
 static void init_buffer(struct usb_serial_test *serial)
 {
-	int			i;
+	unsigned int		i;
 	unsigned char		*buf = serial->txbuf;
 
 	for (i = 0; i < serial->size; i++)
@@ -177,10 +174,8 @@ static unsigned char *alloc_buffer(unsigned size)
 {
 	unsigned char		*tmp;
 
-	if (size == 0) {
-		DBG("%s: cannot allocate a zero sized buffer\n", __func__);
+	if (size == 0)
 		return NULL;
-	}
 
 	tmp = malloc(size);
 	if (!tmp)
@@ -199,19 +194,15 @@ static int alloc_and_init_buffer(struct usb_serial_test *serial)
 	unsigned char		*tmp;
 
 	tmp = alloc_buffer(serial->size);
-	if (!tmp) {
-		DBG("%s: unable to allocate txbuf\n", __func__);
+	if (!tmp)
 		goto err0;
-	}
 
 	serial->txbuf = tmp;
 	init_buffer(serial);
 
 	tmp = alloc_buffer(serial->size);
-	if (!tmp) {
-		DBG("%s: unable to allocate rxbuf\n", __func__);
+	if (!tmp)
 		goto err1;
-	}
 
 	serial->rxbuf = tmp;
 
@@ -240,19 +231,15 @@ static int find_and_claim_interface(struct usb_serial_test *serial)
 
 	ret = ioctl(serial->udevh, USBDEVFS_CLAIMINTERFACE,
 			&serial->interface_num);
-	if (ret < 0) {
-		DBG("%s: couldn't claim interface\n", __func__);
+	if (ret < 0)
 		goto err0;
-	}
 
 	setintf.interface = serial->interface_num;
 	setintf.altsetting = serial->alt_setting;
 
 	ret = ioctl(serial->udevh, USBDEVFS_SETINTERFACE, &setintf);
-	if (ret < 0) {
-		DBG("%s: couldn't set altsetting\n", __func__);
+	if (ret < 0)
 		goto err1;
-	}
 
 	return 0;
 
@@ -302,8 +289,8 @@ static int64_t usecs(struct timeval *start, struct timeval *end)
  */
 static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 {
-	int				transferred = 0;
-	int				done = 0;
+	unsigned int			transferred = 0;
+	unsigned int			done = 0;
 	int				ret;
 	struct usbdevfs_bulktransfer	bulk;
 
@@ -324,10 +311,8 @@ static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 		bulk.data = serial->txbuf + done;
 
 		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
-		if (ret < 0) {
-			DBG("%s: failed to send data\n", __func__);
+		if (ret < 0)
 			goto err;
-		}
 		transferred = ret;
 
 		serial->transferred += transferred;
@@ -354,10 +339,8 @@ static int do_write(struct usb_serial_test *serial, uint32_t bytes)
 		bulk.timeout = TIMEOUT;
 		bulk.data = serial->txbuf + done;
 		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
-		if (ret < 0) {
-			DBG("%s: failed to send data\n", __func__);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	return 0;
@@ -373,8 +356,8 @@ err:
  */
 static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 {
-	int				transferred = 0;
-	int				done = 0;
+	unsigned int			transferred = 0;
+	unsigned int			done = 0;
 	int				ret;
 	struct usbdevfs_bulktransfer	bulk;
 
@@ -388,10 +371,8 @@ static int do_read(struct usb_serial_test *serial, uint32_t bytes)
 		bulk.data = (unsigned char *)serial->rxbuf + done;
 
 		ret = ioctl(serial->udevh, USBDEVFS_BULK, &bulk);
-		if (ret < 0) {
-			DBG("%s: failed receiving %d/%d bytes\n", __func__, done, bytes);
+		if (ret < 0)
 			goto err;
-		}
 		transferred = ret;
 
 		done += transferred;
@@ -424,7 +405,7 @@ err:
  */
 static int do_verify(struct usb_serial_test *serial, uint32_t bytes)
 {
-	int			i;
+	unsigned int		i;
 
 	for (i = 0; i < bytes; i++)
 		if (serial->txbuf[i] != serial->rxbuf[i]) {
@@ -472,10 +453,8 @@ static int open_with_vid_pid(int vid, int pid)
 	int				fd = -1;
 
 	dir = opendir("/dev/bus/usb");
-	if (!dir) {
-		DBG("%s: opendir failed\n", __func__);
+	if (!dir)
 		return -1;
-	}
 
 	while ((ent = readdir(dir))) {
 		if (ent->d_name[0] == '.')
@@ -500,8 +479,6 @@ static int open_with_vid_pid(int vid, int pid)
 
 			if ((read(fd, &desc, sizeof desc) == sizeof desc)
 			&& (desc.idVendor == vid && desc.idProduct == pid)) {
-				DBG("%s: %s matches vid %x pid %x\n",
-					__func__, path, vid, pid);
 				closedir(subdir);
 				goto ret;
 			}
@@ -582,7 +559,7 @@ static struct option serial_opts[] = {
 		.name		= "help",
 		.val		= 'h',
 	},
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 int main(int argc, char *argv[])
@@ -606,7 +583,7 @@ int main(int argc, char *argv[])
 	if (sigaction(SIGINT, &sa, NULL) == -1)
 		printf("failed to handle signal\n");
 
-	(void)	signal(SIGINT, signal_exit);
+	(void) signal(SIGINT, signal_exit);
 
 	while (ARRAY_SIZE(serial_opts)) {
 		int		optidx = 0;
@@ -638,8 +615,6 @@ int main(int argc, char *argv[])
 		case 's':
 			size = atoi(optarg);
 			if (size == 0) {
-				DBG("%s: can't do it with zero length buffer\n",
-						__func__);
 				ret = -EINVAL;
 				goto err0;
 			}
@@ -711,8 +686,8 @@ int main(int argc, char *argv[])
 	printf("\n");
 	do {
 		float		transferred = 0;
-		int		i;
-		unsigned	n;
+		unsigned int	i;
+		unsigned int	n;
 		char		*unit = NULL;
 
 		if (!fixed) {
@@ -722,8 +697,6 @@ int main(int argc, char *argv[])
 		} else {
 			n = size;
 		}
-
-		DBG("%s sending %d bytes\n", __func__, n);
 
 		ret = do_test(serial, n);
 		if (ret < 0) {

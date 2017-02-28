@@ -52,7 +52,7 @@
 
 static struct option testmode_opts[] = {
 	OPTION("device",	1, 'D'),
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 /* redefined here until libusb defines its own */
@@ -70,7 +70,7 @@ struct usb_ss_ep_comp_descriptor {
 
 static void __maybe_unused hexdump(const uint8_t *buf, unsigned size)
 {
-	int				i;
+	unsigned int			i;
 
 	for (i = 0; i < size; i++) {
 		if (i && ((i % 16) == 0))
@@ -84,6 +84,9 @@ static void __maybe_unused hexdump(const uint8_t *buf, unsigned size)
 static int check_for_companion(const uint8_t *buf, int size)
 {
 	struct usb_ss_ep_comp_descriptor comp;
+
+	if (size != USB_SS_EP_COMP_SIZE)
+		return -1;
 
 	memcpy(&comp, buf, USB_SS_EP_COMP_SIZE);
 
@@ -111,7 +114,7 @@ static int check_endpoints(const struct libusb_endpoint_descriptor *eps,
 	}
 
 	return 0;
-};
+}
 
 static int check_alt_settings(const struct libusb_interface_descriptor *alt,
 		int num)
@@ -126,7 +129,7 @@ static int check_alt_settings(const struct libusb_interface_descriptor *alt,
 	}
 
 	return 0;
-};
+}
 
 static int check_interfaces(const struct libusb_interface *intf, int num)
 {
@@ -142,8 +145,7 @@ static int check_interfaces(const struct libusb_interface *intf, int num)
 	return 0;
 }
 
-static int check_configurations(libusb_device_handle *udevh,
-		libusb_device *udev, int num)
+static int check_configurations(libusb_device *udev, int num)
 {
 	struct libusb_config_descriptor *config;
 	int				ret;
@@ -181,7 +183,7 @@ static int do_test(libusb_device_handle *udevh)
 		return ret;
 	}
 
-	return check_configurations(udevh, udev, device_desc.bNumConfigurations);
+	return check_configurations(udev, device_desc.bNumConfigurations);
 }
 
 int main(int argc, char *argv[])

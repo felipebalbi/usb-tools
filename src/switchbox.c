@@ -38,10 +38,6 @@
 
 static unsigned debug;
 
-#define DBG(fmt, args...)				\
-	if (debug)					\
-		printf(fmt, ## args)
-
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 #define SWITCHBOX_CMD_READ	0x80
@@ -69,7 +65,6 @@ static int tty_init(struct switchbox *box)
 
 	box->term = malloc(sizeof(*box->term));
 	if (!box->term) {
-		DBG("%s: could not allocate term\n", __func__);
 		ret = -ENOMEM;
 		goto err0;
 	}
@@ -79,16 +74,12 @@ static int tty_init(struct switchbox *box)
 	cfmakeraw(box->term);
 
 	ret = tcflush(box->fd, TCIOFLUSH);
-	if (ret < 0) {
-		DBG("%s: flush failed\n", __func__);
+	if (ret < 0)
 		goto err1;
-	}
 
 	ret = tcsetattr(box->fd, TCSANOW, box->term);
-	if (ret < 0) {
-		DBG("%s: couldn't set attributes\n", __func__);
+	if (ret < 0)
 		goto err1;
-	}
 
 	return 0;
 
@@ -112,10 +103,8 @@ static int switchbox_read(struct switchbox *box)
 	cmd = SWITCHBOX_CMD_READ;
 
 	ret = write(box->fd, &cmd, 1);
-	if (ret < 0) {
-		DBG("%s: failed to send READ command\n", __func__);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* start polling for data available */
 	pfd.fd = box->fd;
@@ -123,16 +112,12 @@ static int switchbox_read(struct switchbox *box)
 	pfd.revents = 0;
 
 	ret = poll(&pfd, 1, -1);
-	if (ret <= 0) {
-		DBG("%s: failed polling for data available\n", __func__);
+	if (ret <= 0)
 		return -EINVAL;
-	}
 
 	ret = read(box->fd, &box->msg, 1);
-	if (ret < 0) {
-		DBG("%s: failed to read status\n", __func__);
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
@@ -150,26 +135,20 @@ static int switchbox_write(struct switchbox *box)
 	cmd = SWITCHBOX_CMD_WRITE;
 
 	ret = write(box->fd, &cmd, 1);
-	if (ret < 0) {
-		DBG("%s: failed to send WRITE command\n", __func__);
+	if (ret < 0)
 		return ret;
-	}
 
 	pfd.fd = box->fd;
 	pfd.events = POLLOUT;
 	pfd.revents = 0;
 
 	ret = poll(&pfd, 1, -1);
-	if (ret <= 0) {
-		DBG("%s: failed polling for write\n", __func__);
+	if (ret <= 0)
 		return -EINVAL;
-	}
 
 	ret = write(box->fd, &box->msg, 1);
-	if (ret < 0) {
-		DBG("%s: failed writting message\n", __func__);
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
@@ -216,7 +195,7 @@ static struct option switchbox_opts[] = {
 		.name		= "help",
 		.val		= 'h',
 	},
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 int main(int argc, char *argv[])
@@ -261,14 +240,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (!tty) {
-		DBG("%s: need a tty to open\n", __func__);
 		ret = -EINVAL;
 		goto out0;
 	}
 
 	box = malloc(sizeof(*box));
 	if (!box) {
-		DBG("%s: unable to allocate memory\n", __func__);
 		ret = -ENOMEM;
 		goto out0;
 	}
@@ -276,22 +253,16 @@ int main(int argc, char *argv[])
 	memset(box, 0x00, sizeof(*box));
 
 	box->fd = open(tty, O_RDWR | O_NOCTTY);
-	if (box->fd < 0) {
-		DBG("%s: could not open %s\n", __func__, tty);
+	if (box->fd < 0)
 		goto out1;
-	}
 
 	ret = tty_init(box);
-	if (ret < 0) {
-		DBG("%s: failed to initialize tty\n", __func__);
+	if (ret < 0)
 		goto out2;
-	}
 
 	ret = switchbox_read(box);
-	if (ret < 0) {
-		DBG("%s: failed to read\n", __func__);
+	if (ret < 0)
 		goto out2;
-	}
 
 	if (power)
 		box->msg |= number;
@@ -304,8 +275,6 @@ int main(int argc, char *argv[])
 		box->msg &= ~(number << 4);
 
 	ret = switchbox_write(box);
-	if (ret < 0)
-		DBG("%s: failed to write\n", __func__);
 
 out2:
 	close(box->fd);

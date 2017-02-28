@@ -52,7 +52,7 @@ static struct option device_reset_opts[] = {
 	OPTION("help",		0, 'h'),
 	OPTION("count",		1, 'c'),
 	OPTION("device",	1, 'D'),
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 static void usage(char *cmd)
@@ -65,12 +65,12 @@ int main(int argc, char *argv[])
 	libusb_context		*context;
 	libusb_device_handle	*udevh;
 
-	unsigned		count = 1;
-	unsigned		vid = 0;
-	unsigned		pid = 0;
+	unsigned int		count = 1;
+	unsigned int		vid = 0;
+	unsigned int		pid = 0;
+	unsigned int		i;
 
 	int			ret = 0;
-	int			i;
 
 	while (1) {
 		int		optidx;

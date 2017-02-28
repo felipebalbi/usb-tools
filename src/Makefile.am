@@ -31,5 +31,6 @@ testusb_SOURCES = testusb.c
 uda_SOURCES = uda.c
 uda_client_SOURCES = uda-client.c
 
-AM_CFLAGS = -O2 $(libusb_CFLAGS) $(ssl_CFLAGS) $(hid_CFLAGS) $(PTHREAD_CFLAGS)
+AM_CFLAGS = -O2 -Wall -Wextra -Wpedantic $(libusb_CFLAGS) \
+	$(ssl_CFLAGS) $(hid_CFLAGS) $(PTHREAD_CFLAGS)
 LIBS += $(libusb_LIBS) $(ssl_LIBS) $(hid_LIBS) $(PTHREAD_LIBS)

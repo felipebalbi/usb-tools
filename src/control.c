@@ -57,12 +57,12 @@ static struct option control_opts[] = {
 	OPTION("count",		1, 'c'),
 	OPTION("help",		0, 'h'),
 	OPTION("device",	1, 'D'),
-	{  }	/* Terminating entry */
+	{ NULL } /* Terminating entry */
 };
 
 static void hexdump(char *buf, unsigned size)
 {
-	int			i;
+	unsigned int		i;
 
 	if (!size)
 		return;

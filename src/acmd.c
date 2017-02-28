@@ -60,6 +60,11 @@ int main(int argc, char *argv[])
 	char		buf[16];
 	ssize_t		val;
 
+	if (argc < 2) {
+		fprintf(stderr, "need filename\n");
+		return -1;
+	}
+
 retry:
 	fd = open(argv[1], O_RDWR);
 	if (fd < 0) {
