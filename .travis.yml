@@ -1,4 +1,5 @@
 language: c
+script: ./autogen.sh && make
 compiler:
 - clang
 - gcc
