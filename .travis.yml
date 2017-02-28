@@ -1,6 +1,8 @@
 language: c
 addons:
   apt:
+    sources:
+    - precise
     packages:
     - libhidapi-dev
     - libhidapi-hidraw0
