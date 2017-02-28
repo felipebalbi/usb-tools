@@ -1843,6 +1843,7 @@ err3:
 	close(msc->fd);
 
 err2:
+	free(msc->txbuf);
 	free(msc->rxbuf);
 
 err1:
