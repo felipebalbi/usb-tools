@@ -1,10 +1,19 @@
 AC_PREREQ([2.69])
 AC_INIT([usb-tools], [1.0.0])
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+
+AM_INIT_AUTOMAKE([
+	-Wall
+	dist-xz
+	foreign
+	tar-pax
+	subdir-objects
+])
+
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([configure.ac])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
+:${CFLAGS=""}
 AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
 
@@ -53,5 +62,35 @@ AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([clock_gettime getpagesize gettimeofday memset strdup strerror strtol strtoul])
 
 AC_GNU_SOURCE
+
+AC_ARG_ENABLE(debug,
+  AS_HELP_STRING(
+    [--enable-debug],
+    [enable debugging, default: no]),
+    [case "${enableval}" in
+      yes) debug=true ;;
+      no)  debug=false ;;
+      *)   AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+    esac],
+    [debug=false])
+AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
+AM_COND_IF(DEBUG,
+    AC_DEFINE(DEBUG, 1, [Define to 0 if this is a release build]),
+    AC_DEFINE(DEBUG, 0, [Define to 1 or higher if this is a debug build]))
+
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT
+
+AC_MSG_RESULT([
+        $PACKAGE $VERSION
+        =====
+
+        prefix:                 ${prefix}
+        sysconfdir:             ${sysconfdir}
+        libdir:                 ${libdir}
+        includedir:             ${includedir}
+
+        compiler:               ${CC}
+        cflags:                 ${CFLAGS}
+        ldflags:                ${LDFLAGS}
+])
