@@ -19,6 +19,7 @@ bin_PROGRAMS =		\
 	switchbox	\
 	testmode	\
 	testusb		\
+	trace		\
 	uda		\
 	uda-client
 
@@ -64,6 +65,10 @@ device_reset_LDADD = $(libusb_LIBS)
 testmode_SOURCES = testmode.c
 testmode_CFLAGS = $(AM_CFLAGS) $(libusb_CFLAGS)
 testmode_LDADD = $(libusb_LIBS)
+
+trace_SOURCES = trace.c
+trace_CFLAGS = $(AM_CFLAGS) $(libusb_CFLAGS)
+trace_LDADD = $(libusb_LIBS)
 
 uda_SOURCES = uda.c
 uda_CFLAGS = $(AM_CFLAGS) $(libusb_CFLAGS)

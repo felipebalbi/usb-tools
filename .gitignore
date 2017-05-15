@@ -51,6 +51,7 @@ seriald
 switchbox
 testmode
 testusb
+trace
 uda
 uda-client
 
