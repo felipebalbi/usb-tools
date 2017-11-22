@@ -387,13 +387,13 @@ int main (int argc, char **argv)
 	/* pick defaults that works with all speeds, without short packets.
 	 *
 	 * Best per-frame data rates:
-	 *     super speed,bulk      1024 * 13 * 8 = 53248
-	 *                 interrupt 1024 *  3 * 8 = 24576
-	 *     high speed, bulk       512 * 13 * 8 = 53248
-	 *                 interrupt 1024 *  3 * 8 = 24576
-	 *     full speed, bulk/intr   64 * 19     =  1216
-	 *                 interrupt   64 *  1     =    64
-	 *      low speed, interrupt    8 *  1     =     8
+	 *     super speed,bulk      1024 * 16 * 8 = 131072
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     high speed, bulk       512 * 13 * 8 =  53248
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     full speed, bulk/intr   64 * 19     =   1216
+	 *                 interrupt   64 *  1     =     64
+	 *      low speed, interrupt    8 *  1     =      8
 	 */
 	param.iterations = 1000;
 	param.length = 1024;
