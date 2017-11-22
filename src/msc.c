@@ -1653,8 +1653,6 @@ int main(int argc, char *argv[])
 
 		case 't':
 			test = strtoul(optarg, NULL, 10);
-			if (test < 0)
-				goto err0;
 			break;
 
 		case 's':
