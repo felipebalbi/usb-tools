@@ -1,3 +1,5 @@
+#!/bin/sh
+
 autoreconf -fvi
 ./configure --prefix=/usr
 
