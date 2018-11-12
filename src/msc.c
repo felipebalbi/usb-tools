@@ -42,7 +42,9 @@ struct usb_msc_test {
 	uint64_t	pempty;		/* what needs to be filled up still */
 
 	float		read_tput;	/* read throughput */
+	unsigned long long read_count;
 	float		write_tput;	/* write throughput */
+	unsigned long long write_count;
 
 	int		fd;		/* /dev/sd?? */
 	int		count;		/* iteration count */
@@ -170,6 +172,12 @@ static float throughput(struct timespec *start, struct timespec *end, size_t siz
 	return (float) size / ((diff / 1000000000.0) * 1024 * 1024);
 }
 
+static float throughput_mean(struct timespec *start, struct timespec *end,
+		size_t size, float mean, int n)
+{
+	return mean + (throughput(start, end, size) - mean) / n;
+}
+
 /**
  * report_progess - reports the progress of @test
  * @msc:	Mass Storage Test Context
@@ -179,7 +187,7 @@ static float throughput(struct timespec *start, struct timespec *end, size_t siz
  * in order for the user to get progress report.
  */
 static void report_progress(struct usb_msc_test *msc,
-		enum usb_msc_test_case test, int show_tput)
+		enum usb_msc_test_case test)
 {
 	float		transferred = 0;
 	unsigned int	i;
@@ -197,15 +205,8 @@ static void report_progress(struct usb_msc_test *msc,
 	}
 
 	if (!debug) {
-		if (show_tput) {
-			msc->read_tput /= msc->count;
-			msc->write_tput /= msc->count;
-			printf("\rtest %2d: sent %10.02f %cB read %10.02f MB/s write %10.02f MB/s ... ",
-					test, transferred, unit, msc->read_tput, msc->write_tput);
-		} else {
-			printf("\rtest %2d: sent %10.02f %cB read            MB/s write            MB/s ... ",
-					test, transferred, unit);
-		}
+		printf("\rtest %2d: sent %10.02f %cB read %10.02f MB/s write %10.02f MB/s ... ",
+				test, transferred, unit, msc->read_tput, msc->write_tput);
 
 		fflush(stdout);
 	}
@@ -253,8 +254,9 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		}
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->write_tput += throughput(&start, &end, ret);
-
+	msc->write_count++;
+	msc->write_tput = throughput_mean(&start, &end, ret, msc->write_tput,
+			msc->write_count);
 
 	msc->offset = ret;
 
@@ -291,7 +293,9 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 		msc->transferred += ret;
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->read_tput += throughput(&start, &end, bytes);
+	msc->read_count++;
+	msc->read_tput = throughput_mean(&start, &end, ret, msc->read_tput,
+			msc->read_count);
 
 	return 0;
 
@@ -351,7 +355,9 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->write_tput += throughput(&start, &end, ret);
+	msc->write_count++;
+	msc->write_tput = throughput_mean(&start, &end, ret, msc->read_tput,
+			msc->read_count);
 
 	msc->pempty -= ret;
 
@@ -396,7 +402,9 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->read_tput += throughput(&start, &end, ret);
+	msc->read_count++;
+	msc->read_tput = throughput_mean(&start, &end, ret, msc->read_tput,
+			msc->read_count);
 	msc->transferred += ret;
 
 	return 0;
@@ -443,10 +451,8 @@ static int do_test_patterns(struct usb_msc_test *msc)
 		if (ret < 0)
 			break;
 
-		report_progress(msc, MSC_TEST_PATTERNS, false);
+		report_progress(msc, MSC_TEST_PATTERNS);
 	}
-
-	report_progress(msc, MSC_TEST_PATTERNS, true);
 
 	return ret;
 }
@@ -567,10 +573,8 @@ static int do_test_sg_random_both(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_RANDOM_BOTH, false);
+		report_progress(msc, MSC_TEST_SG_RANDOM_BOTH);
 	}
-
-	report_progress(msc, MSC_TEST_SG_RANDOM_BOTH, true);
 
 err:
 	return ret;
@@ -664,10 +668,8 @@ static int do_test_sg_random_write(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE, false);
+		report_progress(msc, MSC_TEST_SG_RANDOM_WRITE);
 	}
-
-	report_progress(msc, MSC_TEST_SG_RANDOM_WRITE, true);
 
 err:
 	return ret;
@@ -759,10 +761,8 @@ static int do_test_sg_random_read(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_RANDOM_READ, false);
+		report_progress(msc, MSC_TEST_SG_RANDOM_READ);
 	}
-
-	report_progress(msc, MSC_TEST_SG_RANDOM_READ, true);
 
 err:
 	return ret;
@@ -798,10 +798,8 @@ static int do_test_write_past_last(struct usb_msc_test *msc)
 			ret = 0;
 		}
 
-		report_progress(msc, MSC_TEST_WRITE_PAST_LAST, false);
+		report_progress(msc, MSC_TEST_WRITE_PAST_LAST);
 	}
-
-	report_progress(msc, MSC_TEST_WRITE_PAST_LAST, true);
 
 err:
 	return ret;
@@ -826,10 +824,8 @@ static int do_test_lseek_past_last(struct usb_msc_test *msc)
 			goto err;
 		}
 
-		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST, false);
+		report_progress(msc, MSC_TEST_LSEEK_PAST_LAST);
 	}
-
-	report_progress(msc, MSC_TEST_LSEEK_PAST_LAST, true);
 
 err:
 	return ret;
@@ -863,10 +859,8 @@ static int do_test_read_past_last(struct usb_msc_test *msc)
 			goto err;
 		}
 
-		report_progress(msc, MSC_TEST_READ_PAST_LAST, false);
+		report_progress(msc, MSC_TEST_READ_PAST_LAST);
 	}
-
-	report_progress(msc, MSC_TEST_READ_PAST_LAST, true);
 
 err:
 	return ret;
@@ -931,10 +925,8 @@ static int do_test_sg_128sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_128SECT, false);
+		report_progress(msc, MSC_TEST_SG_128SECT);
 	}
-
-	report_progress(msc, MSC_TEST_SG_128SECT, true);
 
 err:
 	return ret;
@@ -999,10 +991,8 @@ static int do_test_sg_64sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_64SECT, false);
+		report_progress(msc, MSC_TEST_SG_64SECT);
 	}
-
-	report_progress(msc, MSC_TEST_SG_64SECT, true);
 
 err:
 	return ret;
@@ -1067,10 +1057,8 @@ static int do_test_sg_32sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_32SECT, false);
+		report_progress(msc, MSC_TEST_SG_32SECT);
 	}
-
-	report_progress(msc, MSC_TEST_SG_32SECT, true);
 
 err:
 	return ret;
@@ -1135,10 +1123,8 @@ static int do_test_sg_8sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_8SECT, false);
+		report_progress(msc, MSC_TEST_SG_8SECT);
 	}
-
-	report_progress(msc, MSC_TEST_SG_8SECT, true);
 
 err:
 	return ret;
@@ -1203,10 +1189,8 @@ static int do_test_sg_2sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SG_2SECT, false);
+		report_progress(msc, MSC_TEST_SG_2SECT);
 	}
-
-	report_progress(msc, MSC_TEST_SG_2SECT, true);
 
 err:
 	return ret;
@@ -1255,10 +1239,8 @@ static int do_test_64sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			break;
 
-		report_progress(msc, MSC_TEST_64SECT, false);
+		report_progress(msc, MSC_TEST_64SECT);
 	}
-
-	report_progress(msc, MSC_TEST_64SECT, true);
 
 err:
 	return ret;
@@ -1307,10 +1289,8 @@ static int do_test_32sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			break;
 
-		report_progress(msc, MSC_TEST_32SECT, false);
+		report_progress(msc, MSC_TEST_32SECT);
 	}
-
-	report_progress(msc, MSC_TEST_32SECT, true);
 
 err:
 	return ret;
@@ -1359,10 +1339,8 @@ static int do_test_8sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_8SECT, false);
+		report_progress(msc, MSC_TEST_8SECT);
 	}
-
-	report_progress(msc, MSC_TEST_8SECT, true);
 
 err:
 	return ret;
@@ -1411,10 +1389,8 @@ static int do_test_1sect(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_1SECT, false);
+		report_progress(msc, MSC_TEST_1SECT);
 	}
-
-	report_progress(msc, MSC_TEST_1SECT, true);
 
 err:
 	return ret;
@@ -1462,10 +1438,8 @@ static int do_test_simple(struct usb_msc_test *msc)
 		if (ret < 0)
 			goto err;
 
-		report_progress(msc, MSC_TEST_SIMPLE, false);
+		report_progress(msc, MSC_TEST_SIMPLE);
 	}
-
-	report_progress(msc, MSC_TEST_SIMPLE, true);
 
 err:
 	return ret;
