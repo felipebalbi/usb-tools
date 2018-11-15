@@ -28,8 +28,6 @@
 #define false	0
 #define true	!false
 
-static unsigned debug;
-
 /* for measuring throughput */
 static struct timespec		start;
 static struct timespec		end;
@@ -219,13 +217,11 @@ static void report_progress(struct usb_msc_test *msc,
 		break;
 	}
 
-	if (!debug) {
-		printf("\rT%2d: %4.02f %cB R %6.02f MB/s [s2 %2.02f] W %6.02f MB/s [s2 %2.02f] ... ",
-				test, transferred, unit, msc->read_tput, msc->read_var,
-				msc->write_tput, msc->write_var);
+	printf("\rT%2d: %4.02f %cB R %6.02f MB/s [s2 %2.02f] W %6.02f MB/s [s2 %2.02f] ... ",
+			test, transferred, unit, msc->read_tput, msc->read_var,
+			msc->write_tput, msc->write_var);
 
-		fflush(stdout);
-	}
+	fflush(stdout);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1573,7 +1569,6 @@ static void usage(char *prog)
 			--test, -t		Test number [0 - 21]\n\
 			--size, -s		Size of the internal buffers\n\
 			--count, -c		Iteration count\n\
-			--debug, -d		Enables debugging messages\n\
 			--dsync, -n		Enables O_DSYNC\n\
 			--pattern, -p		Pattern chosen\n\
 			--help, -h		This help\n", prog);
@@ -1604,10 +1599,6 @@ static struct option msc_opts[] = {
 		.name		= "pattern",	/* chosen pattern */
 		.has_arg	= 1,
 		.val		= 'p',
-	},
-	{
-		.name		= "debug",
-		.val		= 'd',
 	},
 	{
 		.name		= "dsync",
@@ -1642,7 +1633,7 @@ int main(int argc, char *argv[])
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:p:b:dnh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1698,10 +1689,6 @@ int main(int argc, char *argv[])
 			if (pattern > ARRAY_SIZE(msc_patterns))
 				goto err0;
 			break;
-		case 'd':
-			debug = 1;
-			break;
-
 		case 'h': /* FALLTHROUGH */
 		default:
 			usage(argv[0]);
