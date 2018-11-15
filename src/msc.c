@@ -41,9 +41,14 @@ struct usb_msc_test {
 	uint64_t	psize;		/* partition size */
 	uint64_t	pempty;		/* what needs to be filled up still */
 
+	float		read_tput_old;	/* previous read throughput */
 	float		read_tput;	/* read throughput */
+	float		read_var;	/* read variance */
 	unsigned long long read_count;
+
+	float		write_tput_old;	/* previous write throughput */
 	float		write_tput;	/* write throughput */
+	float		write_var;	/* write variance */
 	unsigned long long write_count;
 
 	int		fd;		/* /dev/sd?? */
@@ -172,10 +177,20 @@ static float throughput(struct timespec *start, struct timespec *end, size_t siz
 	return (float) size / ((diff / 1000000000.0) * 1024 * 1024);
 }
 
-static float throughput_mean(struct timespec *start, struct timespec *end,
-		size_t size, float mean, int n)
+static float throughput_mean(float tput, float mean, int n)
 {
-	return mean + (throughput(start, end, size) - mean) / n;
+	return mean + (tput - mean) / n;
+}
+
+static float throughput_var(float var, float tput, float old_mean, float mean, int n)
+{
+	float term1;
+	float term2;
+
+	term1 = (n - 1) * var / n;
+	term2 = (tput - old_mean) * (tput - mean) / n;
+
+	return term1 + term2;
 }
 
 /**
@@ -205,8 +220,9 @@ static void report_progress(struct usb_msc_test *msc,
 	}
 
 	if (!debug) {
-		printf("\rtest %2d: sent %10.02f %cB read %10.02f MB/s write %10.02f MB/s ... ",
-				test, transferred, unit, msc->read_tput, msc->write_tput);
+		printf("\rT%2d: %10.02f %cB R %10.02f MB/s [s2 %4.02f] W %10.02f MB/s [s2 %4.02f] ... ",
+				test, transferred, unit, msc->read_tput, msc->read_var,
+				msc->write_tput, msc->write_var);
 
 		fflush(stdout);
 	}
@@ -221,6 +237,7 @@ static void report_progress(struct usb_msc_test *msc,
  */
 static int do_write(struct usb_msc_test *msc, unsigned bytes)
 {
+	float			tput;
 	unsigned int		done = 0;
 	int			ret = -EINVAL;
 
@@ -255,8 +272,14 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->write_count++;
-	msc->write_tput = throughput_mean(&start, &end, ret, msc->write_tput,
+	msc->write_tput_old = msc->write_tput;
+
+	tput = throughput(&start, &end, ret);
+
+	msc->write_tput = throughput_mean(tput, msc->write_tput,
 			msc->write_count);
+	msc->write_var = throughput_var(msc->write_var, tput,
+			msc->write_tput_old, msc->write_tput, msc->write_count);
 
 	msc->offset = ret;
 
@@ -273,6 +296,7 @@ err:
  */
 static int do_read(struct usb_msc_test *msc, unsigned bytes)
 {
+	float			tput;
 	unsigned int		done = 0;
 	int			ret;
 
@@ -294,8 +318,13 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->read_count++;
-	msc->read_tput = throughput_mean(&start, &end, ret, msc->read_tput,
-			msc->read_count);
+	msc->read_tput_old = msc->read_tput;
+
+	tput = throughput(&start, &end, ret);
+
+	msc->read_tput = throughput_mean(tput, msc->read_tput, msc->read_count);
+	msc->read_var = throughput_var(msc->read_var, tput, msc->read_tput_old,
+			msc->read_tput, msc->read_count);
 
 	return 0;
 
@@ -346,6 +375,7 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned count)
 {
+	float			tput;
 	off_t			pos;
 	int			ret;
 
@@ -356,8 +386,14 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->write_count++;
-	msc->write_tput = throughput_mean(&start, &end, ret, msc->read_tput,
-			msc->read_count);
+	msc->write_tput_old = msc->write_tput;
+
+	tput = throughput(&start, &end, ret);
+
+	msc->write_tput = throughput_mean(tput, msc->write_tput,
+			msc->write_count);
+	msc->write_var = throughput_var(msc->write_var, tput,
+			msc->write_tput_old, msc->write_tput, msc->write_count);
 
 	msc->pempty -= ret;
 
@@ -394,6 +430,7 @@ err:
 static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned bytes)
 {
+	float			tput;
 	int			ret;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -403,8 +440,13 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	msc->read_count++;
-	msc->read_tput = throughput_mean(&start, &end, ret, msc->read_tput,
-			msc->read_count);
+	msc->read_tput_old = msc->read_tput;
+
+	tput = throughput(&start, &end, ret);
+
+	msc->read_tput = throughput_mean(tput, msc->read_tput, msc->read_count);
+	msc->read_var = throughput_var(msc->read_var, tput, msc->read_tput_old,
+			msc->read_tput, msc->read_count);
 	msc->transferred += ret;
 
 	return 0;
