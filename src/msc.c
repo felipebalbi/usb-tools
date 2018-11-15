@@ -220,7 +220,7 @@ static void report_progress(struct usb_msc_test *msc,
 	}
 
 	if (!debug) {
-		printf("\rT%2d: %10.02f %cB R %10.02f MB/s [s2 %4.02f] W %10.02f MB/s [s2 %4.02f] ... ",
+		printf("\rT%2d: %4.02f %cB R %6.02f MB/s [s2 %2.02f] W %6.02f MB/s [s2 %2.02f] ... ",
 				test, transferred, unit, msc->read_tput, msc->read_var,
 				msc->write_tput, msc->write_var);
 
