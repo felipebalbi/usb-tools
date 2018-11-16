@@ -61,6 +61,8 @@ struct usb_msc_test {
 	unsigned char	*txbuf;		/* send buffer */
 	unsigned char	*rxbuf;		/* receive buffer*/
 	char		*output;	/* writing to... */
+
+	int		variance;	/* show throughput variance */
 };
 
 enum usb_msc_test_case {
@@ -217,9 +219,15 @@ static void report_progress(struct usb_msc_test *msc,
 		break;
 	}
 
-	printf("\rT%2d: %4.02f %cB R %6.02f MB/s [s2 %2.02f] W %6.02f MB/s [s2 %2.02f] ... ",
-			test, transferred, unit, msc->read_tput, msc->read_var,
-			msc->write_tput, msc->write_var);
+	if (msc->variance)
+		printf("\rT%2d: %4.02f %cB R %4.02f MB/s [s2 %2.02f] W %4.02f MB/s [s2 %2.02f] ... ",
+				test, transferred, unit, msc->read_tput,
+				msc->read_var, msc->write_tput,
+				msc->write_var);
+	else
+		printf("\rT%2d: %4.02f %cB R %4.02f MB/s W %4.02f MB/s ... ",
+				test, transferred, unit, msc->read_tput,
+				msc->write_tput);
 
 	fflush(stdout);
 }
@@ -1569,6 +1577,7 @@ static void usage(char *prog)
 			--test, -t		Test number [0 - 21]\n\
 			--size, -s		Size of the internal buffers\n\
 			--count, -c		Iteration count\n\
+			--variance, -v		Show throughput variance\n\
 			--dsync, -n		Enables O_DSYNC\n\
 			--pattern, -p		Pattern chosen\n\
 			--help, -h		This help\n", prog);
@@ -1601,6 +1610,10 @@ static struct option msc_opts[] = {
 		.val		= 'p',
 	},
 	{
+		.name		= "variance",	/* throughput variance */
+		.val		= 'v',
+	},
+	{
 		.name		= "dsync",
 		.val		= 'n',
 	},
@@ -1629,11 +1642,13 @@ int main(int argc, char *argv[])
 	char			*output = NULL;
 	char			*tmp;
 
+	int			variance = false;
+
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nvh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1681,6 +1696,9 @@ int main(int argc, char *argv[])
 			if (count <= 0)
 				goto err0;
 			break;
+		case 'v':
+			variance = true;
+			break;
 		case 'n':
 			flags |= O_DSYNC;
 			break;
@@ -1709,6 +1727,7 @@ int main(int argc, char *argv[])
 
 	memset(msc, 0x00, sizeof(*msc));
 
+	msc->variance = variance;
 	msc->count = count;
 	msc->size = size;
 	msc->output = output;
