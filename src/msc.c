@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <time.h>
+#include <float.h>
 
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -40,11 +41,15 @@ struct usb_msc_test {
 	uint64_t	pempty;		/* what needs to be filled up still */
 
 	float		read_tput_old;	/* previous read throughput */
+	float		read_min;	/* read throughput */
+	float		read_max;	/* read throughput */
 	float		read_tput;	/* read throughput */
 	float		read_var;	/* read variance */
 	unsigned long long read_count;
 
 	float		write_tput_old;	/* previous write throughput */
+	float		write_min;	/* write throughput */
+	float		write_max;	/* write throughput */
 	float		write_tput;	/* write throughput */
 	float		write_var;	/* write variance */
 	unsigned long long write_count;
@@ -193,6 +198,46 @@ static float throughput_var(float var, float tput, float old_mean, float mean, i
 	return term1 + term2;
 }
 
+static void collect_data(struct usb_msc_test *msc, struct timespec *start,
+		struct timespec *end, size_t size, unsigned int write)
+{
+	float			tput;
+
+	if (write) {
+		msc->write_count++;
+		msc->write_tput_old = msc->write_tput;
+
+		tput = throughput(start, end, size);
+
+		if (tput > msc->write_max)
+			msc->write_max = tput;
+		if (tput < msc->write_min)
+			msc->write_min = tput;
+
+		msc->write_tput = throughput_mean(tput, msc->write_tput,
+				msc->write_count);
+		msc->write_var = throughput_var(msc->write_var, tput,
+				msc->write_tput_old, msc->write_tput,
+				msc->write_count);
+	} else {
+		msc->read_count++;
+		msc->read_tput_old = msc->read_tput;
+
+		tput = throughput(start, end, size);
+
+		if (tput > msc->read_max)
+			msc->read_max = tput;
+		if (tput < msc->read_min)
+			msc->read_min = tput;
+
+		msc->read_tput = throughput_mean(tput, msc->read_tput,
+				msc->read_count);
+		msc->read_var = throughput_var(msc->read_var, tput,
+				msc->read_tput_old, msc->read_tput,
+				msc->read_count);
+	}
+}
+
 /**
  * report_progess - reports the progress of @test
  * @msc:	Mass Storage Test Context
@@ -232,6 +277,39 @@ static void report_progress(struct usb_msc_test *msc,
 	fflush(stdout);
 }
 
+static void print_summary(struct usb_msc_test *msc,
+		enum usb_msc_test_case test)
+{
+	float		transferred = 0;
+	unsigned int	i;
+	char		unit = ' ';
+
+	transferred = (float) msc->transferred;
+
+	for (i = 0; i < ARRAY_SIZE(units); i++) {
+		if (transferred >= 1024.0) {
+			transferred /= 1024.0;
+			continue;
+		}
+		unit = units[i];
+		break;
+	}
+
+	printf("--------------------------------------------------\n");
+	printf("Summary: Test %d  %4.02f %cB\n", test, transferred, unit);
+
+	printf("         %-8s | %-8s | %-8s | %-8s\n",
+			"min", "max", "mean", "variance");
+	printf("--------------------------------------------------\n");
+	printf("%-8s %-8.02f | %-8.02f | %-8.02f | %-8.02f\n", "Write",
+			msc->write_min, msc->write_max, msc->write_tput,
+			msc->write_var);
+
+	printf("%-8s %-8.02f | %-8.02f | %-8.02f | %-8.02f\n", "Read",
+			msc->read_min, msc->read_max, msc->read_tput,
+			msc->read_var);
+}
+
 /* ------------------------------------------------------------------------- */
 
 /**
@@ -241,7 +319,6 @@ static void report_progress(struct usb_msc_test *msc,
  */
 static int do_write(struct usb_msc_test *msc, unsigned bytes)
 {
-	float			tput;
 	unsigned int		done = 0;
 	int			ret = -EINVAL;
 
@@ -275,16 +352,7 @@ static int do_write(struct usb_msc_test *msc, unsigned bytes)
 		}
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->write_count++;
-	msc->write_tput_old = msc->write_tput;
-
-	tput = throughput(&start, &end, ret);
-
-	msc->write_tput = throughput_mean(tput, msc->write_tput,
-			msc->write_count);
-	msc->write_var = throughput_var(msc->write_var, tput,
-			msc->write_tput_old, msc->write_tput, msc->write_count);
-
+	collect_data(msc, &start, &end, ret, true);
 	msc->offset = ret;
 
 	return 0;
@@ -300,7 +368,6 @@ err:
  */
 static int do_read(struct usb_msc_test *msc, unsigned bytes)
 {
-	float			tput;
 	unsigned int		done = 0;
 	int			ret;
 
@@ -321,14 +388,7 @@ static int do_read(struct usb_msc_test *msc, unsigned bytes)
 		msc->transferred += ret;
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->read_count++;
-	msc->read_tput_old = msc->read_tput;
-
-	tput = throughput(&start, &end, ret);
-
-	msc->read_tput = throughput_mean(tput, msc->read_tput, msc->read_count);
-	msc->read_var = throughput_var(msc->read_var, tput, msc->read_tput_old,
-			msc->read_tput, msc->read_count);
+	collect_data(msc, &start, &end, ret, false);
 
 	return 0;
 
@@ -379,7 +439,6 @@ static int do_verify(struct usb_msc_test *msc, unsigned bytes)
 static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned count)
 {
-	float			tput;
 	off_t			pos;
 	int			ret;
 
@@ -389,15 +448,7 @@ static int do_writev(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->write_count++;
-	msc->write_tput_old = msc->write_tput;
-
-	tput = throughput(&start, &end, ret);
-
-	msc->write_tput = throughput_mean(tput, msc->write_tput,
-			msc->write_count);
-	msc->write_var = throughput_var(msc->write_var, tput,
-			msc->write_tput_old, msc->write_tput, msc->write_count);
+	collect_data(msc, &start, &end, ret, true);
 
 	msc->pempty -= ret;
 
@@ -434,7 +485,6 @@ err:
 static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		unsigned bytes)
 {
-	float			tput;
 	int			ret;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -443,14 +493,7 @@ static int do_readv(struct usb_msc_test *msc, const struct iovec *iov,
 		goto err;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	msc->read_count++;
-	msc->read_tput_old = msc->read_tput;
-
-	tput = throughput(&start, &end, ret);
-
-	msc->read_tput = throughput_mean(tput, msc->read_tput, msc->read_count);
-	msc->read_var = throughput_var(msc->read_var, tput, msc->read_tput_old,
-			msc->read_tput, msc->read_count);
+	collect_data(msc, &start, &end, ret, false);
 	msc->transferred += ret;
 
 	return 0;
@@ -1578,6 +1621,7 @@ static void usage(char *prog)
 			--size, -s		Size of the internal buffers\n\
 			--count, -c		Iteration count\n\
 			--variance, -v		Show throughput variance\n\
+			--summary, -S		Print summary upon completion\n\
 			--dsync, -n		Enables O_DSYNC\n\
 			--pattern, -p		Pattern chosen\n\
 			--help, -h		This help\n", prog);
@@ -1614,6 +1658,10 @@ static struct option msc_opts[] = {
 		.val		= 'v',
 	},
 	{
+		.name		= "summary",
+		.val		= 'S',
+	},
+	{
 		.name		= "dsync",
 		.val		= 'n',
 	},
@@ -1643,12 +1691,13 @@ int main(int argc, char *argv[])
 	char			*tmp;
 
 	int			variance = false;
+	int			summary = false;
 
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nvh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nvSh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1699,6 +1748,9 @@ int main(int argc, char *argv[])
 		case 'v':
 			variance = true;
 			break;
+		case 'S':
+			summary = true;
+			break;
 		case 'n':
 			flags |= O_DSYNC;
 			break;
@@ -1732,6 +1784,10 @@ int main(int argc, char *argv[])
 	msc->size = size;
 	msc->output = output;
 	msc->pattern = pattern;
+	msc->read_max = FLT_MIN;
+	msc->read_min = FLT_MAX;
+	msc->write_max = FLT_MIN;
+	msc->write_min = FLT_MAX;
 
 	ret = alloc_and_init_buffer(msc);
 	if (ret < 0)
@@ -1767,6 +1823,9 @@ int main(int argc, char *argv[])
 
 	if (ret < 0)
 		goto err3;
+
+	if (summary)
+		print_summary(msc, test);
 
 	close(msc->fd);
 	free(msc->txbuf);
