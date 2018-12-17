@@ -1,7 +1,7 @@
 #!/bin/sh
 
 autoreconf -fvi
-./configure --prefix=/usr
+./configure $@
 
 echo
 echo "Source code configured. Please compile it with"
