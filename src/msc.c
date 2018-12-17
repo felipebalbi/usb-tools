@@ -40,6 +40,7 @@ struct usb_msc_test {
 	uint64_t	psize;		/* partition size */
 	uint64_t	pempty;		/* what needs to be filled up still */
 
+	float		read_tput_instant; /* read throughput */
 	float		read_tput_old;	/* previous read throughput */
 	float		read_min;	/* read throughput */
 	float		read_max;	/* read throughput */
@@ -47,6 +48,7 @@ struct usb_msc_test {
 	float		read_var;	/* read variance */
 	unsigned long long read_count;
 
+	float		write_tput_instant; /* write throughput */
 	float		write_tput_old;	/* previous write throughput */
 	float		write_min;	/* write throughput */
 	float		write_max;	/* write throughput */
@@ -68,6 +70,7 @@ struct usb_msc_test {
 	char		*output;	/* writing to... */
 
 	int		variance;	/* show throughput variance */
+	int		verbose;	/* enable verbose output */
 };
 
 enum usb_msc_test_case {
@@ -214,6 +217,7 @@ static void collect_data(struct usb_msc_test *msc, struct timespec *start,
 		if (tput < msc->write_min)
 			msc->write_min = tput;
 
+		msc->write_tput_instant = tput;
 		msc->write_tput = throughput_mean(tput, msc->write_tput,
 				msc->write_count);
 		msc->write_var = throughput_var(msc->write_var, tput,
@@ -230,6 +234,7 @@ static void collect_data(struct usb_msc_test *msc, struct timespec *start,
 		if (tput < msc->read_min)
 			msc->read_min = tput;
 
+		msc->read_tput_instant = tput;
 		msc->read_tput = throughput_mean(tput, msc->read_tput,
 				msc->read_count);
 		msc->read_var = throughput_var(msc->read_var, tput,
@@ -264,15 +269,20 @@ static void report_progress(struct usb_msc_test *msc,
 		break;
 	}
 
-	if (msc->variance)
+	if (msc->verbose) {
+		printf("%d,%d,%4.02f,%4.02f\n",
+				test, msc->size, msc->read_tput_instant,
+				msc->write_tput_instant);
+	} else if (msc->variance) {
 		printf("\rT%2d: %4.02f %cB R %4.02f MB/s [s2 %2.02f] W %4.02f MB/s [s2 %2.02f] ... ",
 				test, transferred, unit, msc->read_tput,
 				msc->read_var, msc->write_tput,
 				msc->write_var);
-	else
+	} else {
 		printf("\rT%2d: %4.02f %cB R %4.02f MB/s W %4.02f MB/s ... ",
 				test, transferred, unit, msc->read_tput,
 				msc->write_tput);
+	}
 
 	fflush(stdout);
 }
@@ -1616,14 +1626,15 @@ static int do_test(struct usb_msc_test *msc, enum usb_msc_test_case test)
 static void usage(char *prog)
 {
 	printf("Usage: %s\n\
-			--output, -o		Block device to write to\n\
-			--test, -t		Test number [0 - 21]\n\
-			--size, -s		Size of the internal buffers\n\
 			--count, -c		Iteration count\n\
-			--variance, -v		Show throughput variance\n\
-			--summary, -S		Print summary upon completion\n\
 			--dsync, -n		Enables O_DSYNC\n\
+			--output, -o		Block device to write to\n\
 			--pattern, -p		Pattern chosen\n\
+			--size, -s		Size of the internal buffers\n\
+			--summary, -S		Print summary upon completion\n\
+			--test, -t		Test number [0 - 21]\n\
+			--variance, -v		Show throughput variance\n\
+			--verbose, -V		Verbose output\n\
 			--help, -h		This help\n", prog);
 }
 
@@ -1656,6 +1667,10 @@ static struct option msc_opts[] = {
 	{
 		.name		= "variance",	/* throughput variance */
 		.val		= 'v',
+	},
+	{
+		.name		= "verbose",	/* enable verbosity */
+		.val		= 'V',
 	},
 	{
 		.name		= "summary",
@@ -1691,13 +1706,14 @@ int main(int argc, char *argv[])
 	char			*tmp;
 
 	int			variance = false;
+	int			verbose = false;
 	int			summary = false;
 
 	while (ARRAY_SIZE(msc_opts)) {
 		int		opt_index = 0;
 		int		opt;
 
-		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nvSh", msc_opts, &opt_index);
+		opt = getopt_long(argc, argv, "o:t:s:c:p:b:nvVSh", msc_opts, &opt_index);
 		if (opt < 0)
 			break;
 
@@ -1748,6 +1764,9 @@ int main(int argc, char *argv[])
 		case 'v':
 			variance = true;
 			break;
+		case 'V':
+			verbose = true;
+			break;
 		case 'S':
 			summary = true;
 			break;
@@ -1780,6 +1799,7 @@ int main(int argc, char *argv[])
 	memset(msc, 0x00, sizeof(*msc));
 
 	msc->variance = variance;
+	msc->verbose = verbose;
 	msc->count = count;
 	msc->size = size;
 	msc->output = output;
