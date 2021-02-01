@@ -34,9 +34,11 @@ PKG_CHECK_MODULES([libusb], [libusb-1.0])
 PKG_CHECK_MODULES([ssl], [openssl])
 
 # hidapi
-PKG_CHECK_MODULES([hid], [hidapi], [], [
-  PKG_CHECK_MODULES([hid], [hidapi-hidraw], [], [
-    PKG_CHECK_MODULES([hid], [hidapi-libusb])])])
+AC_ARG_WITH([hidapi], [AS_HELP_STRING([--with-hidapi], [choose hidapi])],
+  [PKG_CHECK_MODULES([hid], [$withval], [], [])],
+  [PKG_CHECK_MODULES([hid], [hidapi], [], [
+    PKG_CHECK_MODULES([hid], [hidapi-hidraw], [], [
+      PKG_CHECK_MODULES([hid], [hidapi-libusb])])])])
 
 # libpthread
 m4_include([m4/ax_pthread.m4])

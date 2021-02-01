@@ -203,7 +203,7 @@ static int cleware_get_switch(struct cleware *c, unsigned int port)
 	if (c->inverted)
 		state = !state;
 
-	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
+	fprintf(stdout, "%d: %s\n", port + 1, state ? "ON" : "OFF");
 
 	return 0;
 }
@@ -280,7 +280,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			port = atoi(optarg);
-			break;
+			if (port >= 1)
+				break;
+			fprintf(stderr, "invalid port number\n");
+			goto out1;
 		case 'r':
 			read = 1;
 			break;
@@ -359,6 +362,7 @@ int main(int argc, char *argv[])
 	}
 
 out3:
+	hid_close(c->handle);
 	free(c);
 
 out2:
