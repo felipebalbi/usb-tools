@@ -280,7 +280,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			port = atoi(optarg);
-			break;
+			if (port >= 1)
+				break;
+			fprintf(stderr, "invalid port number\n");
+			goto out1;
 		case 'r':
 			read = 1;
 			break;
