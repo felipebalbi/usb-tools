@@ -359,6 +359,7 @@ int main(int argc, char *argv[])
 	}
 
 out3:
+	hid_close(c->handle);
 	free(c);
 
 out2:
