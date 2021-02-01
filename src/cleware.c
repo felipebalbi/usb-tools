@@ -203,7 +203,7 @@ static int cleware_get_switch(struct cleware *c, unsigned int port)
 	if (c->inverted)
 		state = !state;
 
-	fprintf(stdout, "%d: %s\n", port, state ? "ON" : "OFF");
+	fprintf(stdout, "%d: %s\n", port + 1, state ? "ON" : "OFF");
 
 	return 0;
 }
